@@ -185,7 +185,7 @@
     let visible=matches.filter(m=>selected(m) && dateTime(m)>=now).sort((a,b)=>dateTime(a)-dateTime(b));
     if(!visible.length) visible=matches.filter(selected).sort((a,b)=>dateTime(a)-dateTime(b)).slice(-8);
     let previous="";
-    $("upcomingList").innerHTML=visible.slice(0,12).map(m=>{const divider=m.date!==previous?`<div class="date-divider">${esc(dateLabel(m.date))}</div>`:"";previous=m.date;return divider+card(m);}).join("") || '<div class="empty">Nessun appuntamento disponibile.</div>';
+    $("upcomingList").innerHTML=visible.map(m=>{const divider=m.date!==previous?`<div class="date-divider">${esc(dateLabel(m.date))}</div>`:"";previous=m.date;return divider+card(m);}).join("") || '<div class="empty">Nessun appuntamento disponibile.</div>';
   }
 
   function teamCodes(matchup){return String(matchup).match(/\b1\d{2}\b/g)||[];}
