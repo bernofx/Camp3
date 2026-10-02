@@ -25,7 +25,11 @@ label{font-size:12px;font-weight:800;color:var(--muted)}select{display:block;mar
 .card-list{display:grid;gap:10px}.match-card{background:var(--white);border:1px solid var(--line);border-radius:17px;padding:15px;display:grid;grid-template-columns:62px 1fr auto;gap:13px;align-items:center}
 .time-block{font-weight:900;color:var(--navy);font-size:17px}.time-block small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
 .match-main strong{display:block;font-size:15px}.match-main p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.4}.match-main .result{color:var(--coral);font-weight:900;font-size:15px}
-.category-chip{align-self:start;border-radius:999px;background:var(--mint);color:#176645;font-size:11px;font-weight:900;padding:6px 8px}
+.category-chip{align-self:start;border-radius:999px;background:var(--mint);color:var(--ink);font-size:11px;font-weight:900;padding:6px 8px}
+.category-chip.category-u13{background:#ff9900}
+.category-chip.category-u14{background:#00b0f0}
+.category-chip.category-u15{background:#b6d7a8}
+.category-chip.category-u17{background:#ffff00}
 .date-divider{font-size:12px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:14px 2px 2px}
 .empty{background:#fff;border:1px dashed #c9c5bd;border-radius:17px;padding:28px;text-align:center;color:var(--muted)}
 .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}.stat{background:var(--navy);color:#fff;border-radius:16px;padding:15px 10px;text-align:center}.stat strong{display:block;font:700 26px Georgia,serif}.stat span{font-size:11px;color:#c9d5df}

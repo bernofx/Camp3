@@ -82,7 +82,8 @@
 
   function card(match) {
     const result=match.result || match.sets.filter(Boolean).join(" · ");
-    return `<article class="match-card"><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small></div><div class="match-main"><strong>${esc(expandMatchup(match.matchup))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}</p></div><span class="category-chip">${esc(match.category)}</span></article>`;
+    const categoryClass=`category-${String(match.category).toLowerCase()}`;
+    return `<article class="match-card"><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small></div><div class="match-main"><strong>${esc(expandMatchup(match.matchup))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span></article>`;
   }
 
   function expandMatchup(value) {
@@ -114,7 +115,12 @@
   }
 
   function populateTeams(){
-    $("teamSelect").innerHTML=Object.entries(staticData.teams).sort((a,b)=>a[1].localeCompare(b[1],"it")||a[0].localeCompare(b[0])).map(([code,name])=>`<option value="${code}">${esc(name)} · ${code}</option>`).join("");
+    const categoryByCode=new Map();
+    staticData.matches.forEach(match=>teamCodes(match.matchup).forEach(code=>categoryByCode.set(code,match.category)));
+    const categoryOrder={U13:13,U14:14,U15:15,U17:17};
+    $("teamSelect").innerHTML=Object.entries(staticData.teams)
+      .sort((a,b)=>(categoryOrder[categoryByCode.get(a[0])]||99)-(categoryOrder[categoryByCode.get(b[0])]||99)||a[1].localeCompare(b[1],"it")||a[0].localeCompare(b[0]))
+      .map(([code,name])=>`<option value="${code}">${esc(categoryByCode.get(code)||"—")} · ${esc(name)} · ${code}</option>`).join("");
   }
 
   function setSync(state,text){$("syncBanner").className=`sync-banner ${state}`;$("syncText").textContent=text;}
