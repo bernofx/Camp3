@@ -2,6 +2,9 @@
   const config = window.VOLLEYSTARS_CONFIG;
   const staticData = window.VOLLEYSTARS_STATIC;
   let matches = staticData.matches.map(x => ({...x}));
+  let notices = [];
+  let toastTimer;
+  let syncing = false;
 
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -57,22 +60,39 @@
     }).filter(Boolean);
   }
 
-  function fetchGviz(category, gid) {
+  function parseNoticeTable(table) {
+    const enabled = value => ["si","sì","true","1","yes"].includes(String(value || "").trim().toLowerCase());
+    return (table?.rows || []).map(entry => {
+      const row=(entry.c || []).map(tableValue);
+      return {title:String(row[0]||"").trim(),message:String(row[1]||"").trim(),accent:enabled(row[2]),active:enabled(row[3])};
+    }).filter(item=>item.active && item.title && item.message);
+  }
+
+  function fetchGvizTable(label, gid, headers) {
     return new Promise((resolve,reject) => {
-      const callback=`vsGviz_${category}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const callback=`vsGviz_${label}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       const script=document.createElement("script");
-      const timer=setTimeout(()=>finish(new Error(`${category}: timeout`)),10000);
+      const timer=setTimeout(()=>finish(new Error(`${label}: timeout`)),10000);
       function finish(error,value){clearTimeout(timer);delete window[callback];script.remove();error?reject(error):resolve(value);}
-      window[callback]=payload=>payload?.status==="error"?finish(new Error(`${category}: risposta Google non valida`)):finish(null,parseGvizTable(category,payload.table));
-      script.onerror=()=>finish(new Error(`${category}: foglio non accessibile`));
-      script.src=`https://docs.google.com/spreadsheets/d/${config.spreadsheetId}/gviz/tq?tqx=responseHandler:${callback}&headers=3&gid=${gid}`;
+      window[callback]=payload=>payload?.status==="error"?finish(new Error(`${label}: risposta Google non valida`)):finish(null,payload.table);
+      script.onerror=()=>finish(new Error(`${label}: foglio non accessibile`));
+      script.src=`https://docs.google.com/spreadsheets/d/${config.spreadsheetId}/gviz/tq?tqx=responseHandler:${callback}&headers=${headers}&gid=${gid}`;
       document.head.appendChild(script);
     });
+  }
+
+  function fetchGviz(category, gid) {
+    return fetchGvizTable(category,gid,3).then(table=>parseGvizTable(category,table));
   }
 
   async function fetchLiveMatches() {
     const requests=Object.entries(config.tabs).map(([category,gid])=>fetchGviz(category,gid));
     return (await Promise.all(requests)).flat();
+  }
+
+  async function fetchNotices() {
+    if (config.noticesGid == null) return [];
+    return parseNoticeTable(await fetchGvizTable("notices",config.noticesGid,1));
   }
 
   function mergeLive(live) {
@@ -81,10 +101,13 @@
   }
 
   function card(match) {
-    const result=match.result || match.sets.filter(Boolean).join(" · ");
+    const result=resultText(match);
     const categoryClass=`category-${String(match.category).toLowerCase()}`;
-    return `<article class="match-card"><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small></div><div class="match-main"><strong>${esc(expandMatchup(match.matchup))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span></article>`;
+    const manager=staticData.fieldManagers?.[match.date]?.[String(match.court)] || "da definire";
+    return `<article class="match-card"><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small></div><div class="match-main"><strong>${esc(expandMatchup(match.matchup))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}</p><p class="field-manager">Responsabile campo: ${esc(manager)}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span></article>`;
   }
+
+  function resultText(match) { return String(match.result || "").trim() || (match.sets || []).filter(Boolean).join(" · "); }
 
   function expandMatchup(value) {
     return value.replace(/\b(1\d{2})\b/g, code => staticData.teams[code] ? `${staticData.teams[code]} (${code})` : code);
@@ -92,9 +115,11 @@
 
   function renderAgenda() {
     const filter=$("categoryFilter").value;
+    const court=$("courtFilter").value;
     const now=new Date();
-    let visible=matches.filter(m=>(filter==="all"||m.category===filter) && dateTime(m)>=now).sort((a,b)=>dateTime(a)-dateTime(b));
-    if(!visible.length) visible=matches.filter(m=>filter==="all"||m.category===filter).sort((a,b)=>dateTime(a)-dateTime(b)).slice(-8);
+    const selected=m=>(filter==="all"||m.category===filter) && (court==="all"||String(m.court)===court);
+    let visible=matches.filter(m=>selected(m) && dateTime(m)>=now).sort((a,b)=>dateTime(a)-dateTime(b));
+    if(!visible.length) visible=matches.filter(selected).sort((a,b)=>dateTime(a)-dateTime(b)).slice(-8);
     let previous="";
     $("upcomingList").innerHTML=visible.slice(0,12).map(m=>{const divider=m.date!==previous?`<div class="date-divider">${esc(dateLabel(m.date))}</div>`:"";previous=m.date;return divider+card(m);}).join("") || '<div class="empty">Nessun appuntamento disponibile.</div>';
   }
@@ -123,20 +148,47 @@
       .map(([code,name])=>`<option value="${code}">${esc(categoryByCode.get(code)||"—")} · ${esc(name)} · ${code}</option>`).join("");
   }
 
+  function renderNotices(){
+    $("noticeList").innerHTML=notices.map(item=>`<article class="info-card${item.accent?" accent":""}"><h3>${esc(item.title)}</h3><p>${esc(item.message)}</p></article>`).join("");
+  }
+
+  function changedResults(previous,current){
+    const oldById=new Map((previous||[]).map(match=>[match.gameId,resultText(match)]));
+    return current.filter(match=>{const value=resultText(match);return value && value!==oldById.get(match.gameId);});
+  }
+
+  function hideResultToast(){
+    clearTimeout(toastTimer);$("resultToast").classList.remove("visible");$("resultToast").setAttribute("aria-hidden","true");
+  }
+
+  function showResultToast(changes){
+    if(!changes.length)return;
+    const visible=changes.slice(0,3).map(match=>`<p><strong>${esc(match.category)}</strong> · ${esc(expandMatchup(match.matchup))}: ${esc(resultText(match))}</p>`).join("");
+    const more=changes.length>3?`<p>e altri ${changes.length-3} aggiornamenti</p>`:"";
+    $("resultToastBody").innerHTML=visible+more;
+    $("resultToast").classList.add("visible");$("resultToast").setAttribute("aria-hidden","false");
+    clearTimeout(toastTimer);toastTimer=setTimeout(hideResultToast,10000);
+  }
+
   function setSync(state,text){$("syncBanner").className=`sync-banner ${state}`;$("syncText").textContent=text;}
   async function sync(){
+    if(syncing)return; syncing=true;
     setSync("","Sincronizzazione con il foglio…");
-    try{const live=await fetchLiveMatches();if(live.length<20)throw new Error("Dati insufficienti");mergeLive(live);localStorage.setItem(`volleystars-${config.activeName}`,JSON.stringify({at:Date.now(),matches}));setSync("live",`Aggiornato ora · ${config.label}`);}
-    catch(error){const cached=JSON.parse(localStorage.getItem(`volleystars-${config.activeName}`)||"null");if(cached?.matches){matches=cached.matches;setSync("error",`Offline · dati salvati ${new Date(cached.at).toLocaleString("it-IT")}`);}else setSync("error",`Calendario offline · risultati non sincronizzati (${config.label})`);}
-    renderAgenda();renderTeams();
+    const cacheKey=`volleystars-${config.activeName}`;
+    const cached=JSON.parse(localStorage.getItem(cacheKey)||"null");
+    const noticeRequest=fetchNotices().catch(()=>cached?.notices||[]);
+    try{const live=await fetchLiveMatches();if(live.length<20)throw new Error("Dati insufficienti");mergeLive(live);notices=await noticeRequest;const changes=cached?.matches?changedResults(cached.matches,matches):[];localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),matches,notices}));setSync("live",`Aggiornato ora · ${config.label}`);showResultToast(changes);}
+    catch(error){notices=await noticeRequest;if(cached?.matches){matches=cached.matches;setSync("error",`Offline · dati salvati ${new Date(cached.at).toLocaleString("it-IT")}`);}else setSync("error",`Calendario offline · risultati non sincronizzati (${config.label})`);}
+    finally{syncing=false;}
+    renderAgenda();renderTeams();renderNotices();
   }
 
   $("resultsLink").href=config.editUrl;
   $("environmentInfo").textContent=`Configurazione attiva: ${config.label}. Foglio ${config.spreadsheetId}.`;
   document.querySelectorAll(".nav-item").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));button.classList.add("active");$(button.dataset.view).classList.add("active");}));
-  $("categoryFilter").addEventListener("change",renderAgenda);$("teamSelect").addEventListener("change",renderTeams);$("refreshButton").addEventListener("click",sync);
-  populateTeams();renderAgenda();renderTeams();sync();
+  $("categoryFilter").addEventListener("change",renderAgenda);$("courtFilter").addEventListener("change",renderAgenda);$("teamSelect").addEventListener("change",renderTeams);$("refreshButton").addEventListener("click",sync);$("resultToastClose").addEventListener("click",hideResultToast);
+  populateTeams();renderAgenda();renderTeams();renderNotices();sync();setInterval(sync,60000);
   if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 
-  window.VolleyStarsTestApi={parseCsv,parseSheetCsv,parseGvizTable,normalizeMatchup,resultOutcome};
+  window.VolleyStarsTestApi={parseCsv,parseSheetCsv,parseGvizTable,parseNoticeTable,normalizeMatchup,resultOutcome,changedResults};
 })();

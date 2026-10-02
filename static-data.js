@@ -45,5 +45,29 @@
   [["0405","14:30","1","186 - 188","CABIATE","SANTINON"],["0406","15:40","1","182 - 183","LONGONE","SANTINON"],["0407","16:50","1","187 - 188","AGORA'","BRENNA"],["0408","18:00","1","181 - 182","POLISPORTIVA","BRENNA"],["0409","18:00","2","185 - 188","CASSANO","CANTAGALLI"],["0410","19:10","1","182 - 184","INDUNO","BRENNA"],["0411","19:10","2","186 - 187","SANTAGATA","SARCHI"]].forEach(x=>add("U17","2026-10-03",...x));
   [["0412","09:00","C3 - D4","C3","RELLA"],["0413","10:10","D3 - C4","D3","GANDINI"],["0414","11:20","C1 - D2","C1","GANDINI"],["0415","12:30","D1 - C2","D1","BOERO"],["0416","13:30","FINALE 7°-8°","DA DEFINIRE","BOERO"],["0417","14:45","FINALE 5°-6°","DA DEFINIRE","BOERO"],["0418","16:00","FINALE 3°-4°","POLISPORTIVA","FEDERALI"],["0419","17:15","FINALE 1°-2°","POLISPORTIVA","FEDERALI"]].forEach(x=>add("U17","2026-10-04",x[0],x[1],"1",x[2],x[3],x[4]));
 
-  window.VOLLEYSTARS_STATIC = { teams, matches: rows };
+  const fieldManagers = {
+    "2026-10-02": {
+      "1":"Luca (prima e ultima gara) · Morena (altre gare)",
+      "2":"Susanna + Irene R.",
+      "3":"Alberto + Morena (prima gara: Morena)",
+      "4":"Alice + Filippo (terza gara: Alice)",
+      "5":"Irene P. + Giuseppe"
+    },
+    "2026-10-03": {
+      "1":"Luca + Marisa",
+      "2":"Alberto (prime 2 gare) · Susanna (altre 3)",
+      "3":"Alberto + Morena (prime 2 gare)",
+      "4":"Manila (prime 2 gare) · Morena (altre 3)",
+      "5":"Irene P. + Violetti"
+    },
+    "2026-10-04": {
+      "1":"Luca + Morena",
+      "2":"Alice + Giuseppe",
+      "3":"Susanna + Alberto",
+      "4":"Alice + Giuseppe",
+      "5":"Irene P. + Violetti + Jessica"
+    }
+  };
+
+  window.VOLLEYSTARS_STATIC = { teams, matches: rows, fieldManagers };
 })();

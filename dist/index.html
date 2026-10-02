@@ -39,15 +39,27 @@
           <p class="eyebrow">AGENDA</p>
           <h2>Prossimi appuntamenti</h2>
         </div>
-        <label class="compact-filter">Categoria
-          <select id="categoryFilter">
-            <option value="all">Tutte</option>
-            <option value="U13">U13</option>
-            <option value="U14">U14</option>
-            <option value="U15">U15</option>
-            <option value="U17">U17</option>
-          </select>
-        </label>
+        <div class="agenda-filters">
+          <label class="compact-filter">Categoria
+            <select id="categoryFilter">
+              <option value="all">Tutte</option>
+              <option value="U13">U13</option>
+              <option value="U14">U14</option>
+              <option value="U15">U15</option>
+              <option value="U17">U17</option>
+            </select>
+          </label>
+          <label class="compact-filter">Campo
+            <select id="courtFilter">
+              <option value="all">Tutti</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+        </div>
       </div>
       <div id="upcomingList" class="card-list"></div>
     </section>
@@ -77,10 +89,7 @@
         <h3>Come vengono aggiornati i dati</h3>
         <p>L’app legge il foglio risultati e lo combina con il programma ufficiale. Se manca la rete, mostra l’ultima versione disponibile e il calendario integrato.</p>
       </article>
-      <article class="info-card accent">
-        <h3>Nota campo 5</h3>
-        <p>Per venerdì 2 ottobre fanno fede gli orari del Programma gare: <strong>18:00, 19:10 e 20:20</strong>.</p>
-      </article>
+      <div id="noticeList"></div>
       <article class="info-card">
         <h3>Ambiente dati</h3>
         <p id="environmentInfo"></p>
@@ -93,6 +102,12 @@
     <button id="teamsTab" class="nav-item" data-view="teamsView" type="button"><span>◎</span>Squadre</button>
     <button id="infoTab" class="nav-item" data-view="infoView" type="button"><span>i</span>Info</button>
   </nav>
+
+  <aside id="resultToast" class="result-toast" role="status" aria-live="polite" aria-hidden="true">
+    <button id="resultToastClose" type="button" aria-label="Chiudi notifica">×</button>
+    <strong>Nuovi risultati</strong>
+    <div id="resultToastBody"></div>
+  </aside>
 
   <script src="config.js"></script>
   <script src="static-data.js"></script>
