@@ -25,7 +25,7 @@ label{font-size:12px;font-weight:800;color:var(--muted)}select{display:block;mar
 .agenda-filters{display:flex;gap:8px;align-items:end}.compact-filter select{min-width:82px}
 .card-list{display:grid;gap:10px}.match-card{background:var(--white);border:1px solid var(--line);border-radius:17px;padding:15px;display:grid;grid-template-columns:62px 1fr auto;gap:13px;align-items:center}
 .time-block{font-weight:900;color:var(--navy);font-size:17px}.time-block small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
-.match-main strong{display:block;font-size:15px}.match-main p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.4}.match-main .result{color:var(--coral);font-weight:900;font-size:15px}.match-main .field-manager{color:var(--navy);font-weight:800}
+.match-main strong{display:block;font-size:15px}.match-main p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.4}.match-main .result{color:var(--coral);font-weight:900;font-size:15px}
 .category-chip{align-self:start;border-radius:999px;background:var(--mint);color:var(--ink);font-size:11px;font-weight:900;padding:6px 8px}
 .category-chip.category-u13{background:#ff9900}
 .category-chip.category-u14{background:#00b0f0}

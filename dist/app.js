@@ -103,8 +103,7 @@
   function card(match) {
     const result=resultText(match);
     const categoryClass=`category-${String(match.category).toLowerCase()}`;
-    const manager=staticData.fieldManagers?.[match.date]?.[String(match.court)] || "da definire";
-    return `<article class="match-card"><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small></div><div class="match-main"><strong>${esc(expandMatchup(match.matchup))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}</p><p class="field-manager">Responsabile campo: ${esc(manager)}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span></article>`;
+    return `<article class="match-card"><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small></div><div class="match-main"><strong>${esc(expandMatchup(match.matchup))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span></article>`;
   }
 
   function resultText(match) { return String(match.result || "").trim() || (match.sets || []).filter(Boolean).join(" · "); }
