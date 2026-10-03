@@ -3,8 +3,10 @@
   const staticData = window.VOLLEYSTARS_STATIC;
   let matches = staticData.matches.map(x => ({...x}));
   let notices = [];
+  let sheetStandings = {};
   let toastTimer;
   let syncing = false;
+  const selectionKey = "volleystars-v2-selections";
   const qualificationGroups = {
     U13:{C:["131","132","133","134"],D:["135","136","137","138"]},
     U14:{C:["141","142","143","144"]},
@@ -16,6 +18,12 @@
     U14:{"0208":["loser","0206","0207"],"0209":["winner","0206","0207"]},
     U15:{"0316":["loser","0312","0313"],"0317":["winner","0312","0313"],"0318":["loser","0314","0315"],"0319":["winner","0314","0315"]},
     U17:{"0416":["loser","0412","0413"],"0417":["winner","0412","0413"],"0418":["loser","0414","0415"],"0419":["winner","0414","0415"]}
+  };
+  const finalBrackets = {
+    U13:[{title:"Titolo e podio",semis:["0114","0115"],finals:["0119","0118"]},{title:"Dal 5° all’8° posto",semis:["0112","0113"],finals:["0117","0116"]}],
+    U14:[{title:"Titolo e podio",semis:["0206","0207"],finals:["0209","0208"]}],
+    U15:[{title:"Titolo e podio",semis:["0314","0315"],finals:["0319","0318"]},{title:"Dal 5° all’8° posto",semis:["0312","0313"],finals:["0317","0316"]}],
+    U17:[{title:"Titolo e podio",semis:["0414","0415"],finals:["0419","0418"]},{title:"Dal 5° all’8° posto",semis:["0412","0413"],finals:["0417","0416"]}]
   };
 
   const $ = id => document.getElementById(id);
@@ -54,6 +62,35 @@
     }).filter(Boolean);
   }
 
+  function parseSheetRows(category, rows) {
+    let currentDate="";
+    return (rows||[]).slice(3).map(row=>{
+      currentDate=sheetDate(row[0],currentDate);
+      const gameId=String(row[2]||"").trim();
+      if(!/^\d{4}$/.test(gameId)||!currentDate)return null;
+      return {category,date:currentDate,time:String(row[1]||"").padStart(5,"0"),gameId,court:String(row[3]||""),matchup:normalizeMatchup(row[4]),scorekeeper:String(row[5]||""),referee:String(row[6]||""),result:String(row[7]||""),sets:[row[8]||"",row[9]||"",row[10]||""]};
+    }).filter(Boolean);
+  }
+
+  function markerValue(value) {
+    const text=String(value||"").trim();
+    if(/^\d+$/.test(text))return Number(text);
+    return (text.match(/x/gi)||[]).length;
+  }
+
+  function parseStandingsRows(category, rows) {
+    const groups={}; let group="";
+    (rows||[]).forEach(row=>{
+      const label=String(row[1]||"").trim();
+      if(/girone\s+a/i.test(label)){group="C";groups[group]=[];return;}
+      if(/girone\s+b/i.test(label)){group="D";groups[group]=[];return;}
+      const team=label.match(/^(1\d{2})\s*=/);
+      if(!group||!team)return;
+      groups[group].push({code:team[1],played:markerValue(row[2]),wins:markerValue(row[3]),setsFor:markerValue(row[5]),setsAgainst:markerValue(row[6]),points:markerValue(row[7])});
+    });
+    return groups;
+  }
+
   function tableValue(cell) {
     if (!cell) return "";
     if (cell.f != null) return String(cell.f);
@@ -71,6 +108,8 @@
       return {category,date:currentDate,time:String(row[1]||"").padStart(5,"0"),gameId,court:String(row[3]||""),matchup:normalizeMatchup(row[4]),scorekeeper:String(row[5]||""),referee:String(row[6]||""),result:String(row[7]||""),sets:[row[8]||"",row[9]||"",row[10]||""]};
     }).filter(Boolean);
   }
+
+  function gvizRows(table){return (table?.rows||[]).map(entry=>(entry.c||[]).map(tableValue));}
 
   function parseNoticeTable(table) {
     const enabled = value => ["si","sì","true","1","yes"].includes(String(value || "").trim().toLowerCase());
@@ -94,12 +133,16 @@
   }
 
   function fetchGviz(category, gid) {
-    return fetchGvizTable(category,gid,3).then(table=>parseGvizTable(category,table));
+    return fetchGvizTable(category,gid,3).then(table=>({matches:parseGvizTable(category,table),standings:parseStandingsRows(category,gvizRows(table))}));
   }
 
   async function fetchLiveMatches() {
+    const response=await fetch("/api/data",{cache:"no-store"});
+    if(response.ok){const payload=await response.json();if(payload.ok&&payload.rows){sheetStandings=Object.fromEntries(Object.entries(payload.rows).map(([category,rows])=>[category,parseStandingsRows(category,rows)]));return Object.entries(payload.rows).flatMap(([category,rows])=>parseSheetRows(category,rows));}}
     const requests=Object.entries(config.tabs).map(([category,gid])=>fetchGviz(category,gid));
-    return (await Promise.all(requests)).flat();
+    const bundles=await Promise.all(requests);
+    sheetStandings=Object.fromEntries(Object.keys(config.tabs).map((category,index)=>[category,bundles[index].standings]));
+    return bundles.flatMap(bundle=>bundle.matches);
   }
 
   async function fetchNotices() {
@@ -115,31 +158,41 @@
   function matchScore(match) {
     const direct=String(match.result||"").match(/(\d+)\s*[-–]\s*(\d+)/);
     if(direct)return [+direct[1],+direct[2]];
-    const wins=[0,0];
-    (match.sets||[]).forEach(set=>{const score=String(set).match(/(\d+)\s*[-–]\s*(\d+)/);if(score){if(+score[1]>+score[2])wins[0]++;else if(+score[2]>+score[1])wins[1]++;}});
-    return wins[0]||wins[1]?wins:null;
+    return null;
   }
 
-  function rankGroup(codes,sourceMatches=matches) {
+  function groupStandings(codes,sourceMatches=matches,category="",groupKey="") {
     const codeSet=new Set(codes);
-    const groupMatches=sourceMatches.filter(match=>{const found=teamCodes(match.matchup);return found.length===2&&found.every(code=>codeSet.has(code));});
-    const expected=(codes.length*(codes.length-1))/2;
-    if(groupMatches.length!==expected||groupMatches.some(match=>!matchScore(match)))return null;
-    const stats=new Map(codes.map(code=>[code,{code,points:0,wins:0,setsFor:0,setsAgainst:0,pointsFor:0,pointsAgainst:0}]));
-    groupMatches.forEach(match=>{
-      const [left,right]=teamCodes(match.matchup), score=matchScore(match), a=stats.get(left), b=stats.get(right);
-      a.setsFor+=score[0];a.setsAgainst+=score[1];b.setsFor+=score[1];b.setsAgainst+=score[0];
+    const stats=new Map(codes.map(code=>[code,{code,played:0,points:0,wins:0,setsFor:0,setsAgainst:0,pointsFor:0,pointsAgainst:0}]));
+    sourceMatches.forEach(match=>{
+      const found=teamCodes(match.matchup), score=matchScore(match);
+      if(found.length!==2||!found.every(code=>codeSet.has(code))||!score||score[0]===score[1])return;
+      const [left,right]=found, a=stats.get(left), b=stats.get(right);
+      a.played++;b.played++;a.setsFor+=score[0];a.setsAgainst+=score[1];b.setsFor+=score[1];b.setsAgainst+=score[0];
       (match.sets||[]).forEach(set=>{const points=String(set).match(/(\d+)\s*[-–]\s*(\d+)/);if(points){a.pointsFor+=+points[1];a.pointsAgainst+=+points[2];b.pointsFor+=+points[2];b.pointsAgainst+=+points[1];}});
       const winner=score[0]>score[1]?a:b, loser=winner===a?b:a;winner.wins++;
       if(Math.abs(score[0]-score[1])===1){winner.points+=2;loser.points+=1;}else winner.points+=3;
     });
-    return [...stats.values()].sort((a,b)=>b.points-a.points||b.wins-a.wins||(b.setsFor-b.setsAgainst)-(a.setsFor-a.setsAgainst)||b.setsFor-a.setsFor||(b.pointsFor-b.pointsAgainst)-(a.pointsFor-a.pointsAgainst)||a.code.localeCompare(b.code)).map(item=>item.code);
+    const official=new Map((sheetStandings[category]?.[groupKey]||[]).map(item=>[item.code,item]));
+    official.forEach((item,code)=>{if(stats.has(code))Object.assign(stats.get(code),item);});
+    return [...stats.values()].sort((a,b)=>b.points-a.points||b.wins-a.wins||(b.setsFor-b.setsAgainst)-(a.setsFor-a.setsAgainst)||b.setsFor-a.setsFor||pointRatio(b)-pointRatio(a)||a.code.localeCompare(b.code));
+  }
+
+  function pointRatio(item){return item.pointsAgainst?item.pointsFor/item.pointsAgainst:(item.pointsFor?Number.POSITIVE_INFINITY:0);}
+  function ratioText(item){const ratio=pointRatio(item);return ratio===Number.POSITIVE_INFINITY?"∞":item.pointsFor||item.pointsAgainst?ratio.toFixed(3).replace(".",","):"—";}
+
+  function rankGroup(codes,sourceMatches=matches,category="",groupKey="") {
+    const codeSet=new Set(codes);
+    const groupMatches=sourceMatches.filter(match=>{const found=teamCodes(match.matchup);return found.length===2&&found.every(code=>codeSet.has(code));});
+    const expected=(codes.length*(codes.length-1))/2;
+    if(groupMatches.length!==expected||groupMatches.some(match=>!matchScore(match)))return null;
+    return groupStandings(codes,sourceMatches,category,groupKey).map(item=>item.code);
   }
 
   function qualificationMap(category,sourceMatches=matches) {
     const map=new Map();
     Object.entries(qualificationGroups[category]||{}).forEach(([letter,codes])=>{
-      const ranking=rankGroup(codes,sourceMatches);
+      const ranking=rankGroup(codes,sourceMatches,category,letter);
       if(ranking)ranking.forEach((code,index)=>map.set(`${letter}${index+1}`,code));
     });
     return map;
@@ -168,10 +221,23 @@
   function card(match) {
     const result=resultText(match);
     const categoryClass=`category-${String(match.category).toLowerCase()}`;
-    return `<article class="match-card"><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small></div><div class="match-main"><strong>${esc(expandMatchup(resolvedMatchup(match)))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span></article>`;
+    const sets=(match.sets||[]).map(value=>String(value||"").trim()).filter(score=>{const pair=score.match(/(\d+)\s*[-–]\s*(\d+)/);return pair&&(+pair[1]>0||+pair[2]>0);});
+    const hasDetails=sets.length>0&&(Boolean(result)||dateTime(match)<=new Date());
+    const interaction=hasDetails?'role="button" tabindex="0" aria-expanded="false" aria-label="Mostra i parziali della gara '+esc(match.gameId)+'"':'';
+    const setDetails=hasDetails?`<span class="details-label">Parziali <span class="card-chevron" aria-hidden="true">⌄</span></span><div class="set-details" hidden>${sets.map((score,index)=>`<span><strong>${index+1}° set</strong>${esc(score)}</span>`).join("")}</div>`:"";
+    return `<article class="match-card${hasDetails?" has-details":""}" data-game-id="${esc(match.gameId)}" ${interaction}><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small><small>Gara ${esc(match.gameId)}</small></div><div class="match-main"><strong>${esc(expandMatchup(resolvedMatchup(match)))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span>${setDetails}</article>`;
   }
 
-  function resultText(match) { return String(match.result || "").trim() || (match.sets || []).filter(Boolean).join(" · "); }
+  function toggleMatchCard(card){
+    const details=card.querySelector(".set-details");
+    if(!details)return;
+    const expanded=card.getAttribute("aria-expanded")==="true";
+    card.setAttribute("aria-expanded",String(!expanded));
+    card.classList.toggle("expanded",!expanded);
+    details.hidden=expanded;
+  }
+
+  function resultText(match) { return String(match.result || "").trim(); }
 
   function expandMatchup(value) {
     return value.replace(/\b(1\d{2})\b/g, code => staticData.teams[code] ? `${staticData.teams[code]} (${code})` : code);
@@ -180,10 +246,10 @@
   function renderAgenda() {
     const filter=$("categoryFilter").value;
     const court=$("courtFilter").value;
+    const upcomingOnly=$("upcomingOnly").checked;
     const now=new Date();
     const selected=m=>(filter==="all"||m.category===filter) && (court==="all"||String(m.court)===court);
-    let visible=matches.filter(m=>selected(m) && dateTime(m)>=now).sort((a,b)=>dateTime(a)-dateTime(b));
-    if(!visible.length) visible=matches.filter(selected).sort((a,b)=>dateTime(a)-dateTime(b)).slice(-8);
+    const visible=matches.filter(m=>selected(m) && (!upcomingOnly || dateTime(m)>=now)).sort((a,b)=>dateTime(a)-dateTime(b));
     let previous="";
     $("upcomingList").innerHTML=visible.map(m=>{const divider=m.date!==previous?`<div class="date-divider">${esc(dateLabel(m.date))}</div>`:"";previous=m.date;return divider+card(m);}).join("") || '<div class="empty">Nessun appuntamento disponibile.</div>';
   }
@@ -191,8 +257,7 @@
   function teamCodes(matchup){return String(matchup).match(/\b1\d{2}\b/g)||[];}
   function resultOutcome(match, code){
     const codes=teamCodes(resolvedMatchup(match)); if(codes.length!==2) return null;
-    let parts=String(match.result).match(/(\d+)\s*[-–]\s*(\d+)/);
-    if(!parts){const wins=[0,0];match.sets.forEach(set=>{const s=String(set).match(/(\d+)\s*[-–]\s*(\d+)/);if(s){if(+s[1]>+s[2])wins[0]++;else wins[1]++;}});if(!wins[0]&&!wins[1])return null;parts=["",wins[0],wins[1]];}
+    const parts=String(match.result).match(/(\d+)\s*[-–]\s*(\d+)/);if(!parts)return null;
     const side=codes.indexOf(code); if(side<0)return null; const ours=+(parts[side+1]), theirs=+(parts[side===0?2:1]); return ours===theirs?"draw":ours>theirs?"win":"loss";
   }
 
@@ -210,6 +275,75 @@
     $("teamSelect").innerHTML=Object.entries(staticData.teams)
       .sort((a,b)=>(categoryOrder[categoryByCode.get(a[0])]||99)-(categoryOrder[categoryByCode.get(b[0])]||99)||a[1].localeCompare(b[1],"it")||a[0].localeCompare(b[0]))
       .map(([code,name])=>`<option value="${code}">${esc(categoryByCode.get(code)||"—")} · ${esc(name)} · ${code}</option>`).join("");
+  }
+
+  function renderStandings(){
+    const category=$("standingsCategory").value;
+    const groups=qualificationGroups[category]||{};
+    $("standingsList").innerHTML=Object.entries(groups).map(([letter,codes])=>{
+      const rows=groupStandings(codes,matches,category,letter).map((item,index)=>`<tr><td class="standing-position">${index+1}</td><td><strong>${esc(staticData.teams[item.code]||item.code)}</strong><small>${esc(item.code)}</small></td><td>${item.played}</td><td>${item.wins}</td><td>${item.setsFor}-${item.setsAgainst}</td><td class="standing-ratio">${ratioText(item)}</td><td class="standing-points">${item.points}</td></tr>`).join("");
+      const groupName=letter==="C"?"A":letter==="D"?"B":letter;
+      return `<section class="standings-card"><h3>Girone ${esc(groupName)}</h3><div class="table-scroll"><table><thead><tr><th>#</th><th>Squadra</th><th>G</th><th>V</th><th>Set</th><th title="Quoziente punti fatti/punti subiti">QP</th><th>Pt</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+    }).join("")||'<div class="empty">Classifica non disponibile.</div>';
+  }
+
+  function bracketMatch(gameId,kind){
+    const match=matches.find(item=>item.gameId===gameId);
+    if(!match)return "";
+    const matchup=expandMatchup(resolvedMatchup(match));
+    const flow=finalFlows[match.category]?.[gameId];
+    const unresolved=flow&&/^FINALE\b/i.test(matchup);
+    const teams=unresolved
+      ? flow.slice(1).map(source=>`${flow[0]==="winner"?"Vincente":"Perdente"} gara ${source}`)
+      : matchup.split(/\s+-\s+/);
+    const score=matchScore(match);
+    const isFinal=/^Finale\b/i.test(kind), isChampionship=/1°\s*-\s*2°/.test(kind);
+    const rows=teams.map((team,index)=>{
+      const winner=score&&score[index]>score[1-index];
+      const badge=winner&&isFinal?`<small>${isChampionship?"🏆 Campione":"✓ Vincente"}</small>`:"";
+      return `<div class="bracket-team${winner?" winner":""}${winner&&isChampionship?" champion":""}"><span>${esc(team)}${badge}</span>${score?`<strong>${score[index]}</strong>`:""}</div>`;
+    }).join("");
+    return `<article class="bracket-match"><div class="bracket-meta"><span>${esc(kind)}</span><span>${esc(match.time)} · gara ${esc(match.gameId)}</span></div>${rows}</article>`;
+  }
+
+  function finalLabel(match){
+    const label=String(match?.matchup||"").match(/FINALE\s+(.+)/i);
+    return label?`Finale ${label[1].toLowerCase()}`:"Finale";
+  }
+
+  function renderFinals(){
+    const category=$("finalsCategory").value;
+    const sections=finalBrackets[category]||[];
+    $("finalsBracket").innerHTML=sections.map(section=>{
+      const semis=section.semis.map(id=>bracketMatch(id,"Semifinale")).join("");
+      const finals=section.finals.map(id=>bracketMatch(id,finalLabel(matches.find(match=>match.gameId===id)))).join("");
+      const titleFinal=section.finals.find(id=>/FINALE\s+1°\s*-\s*2°/i.test(matches.find(match=>match.gameId===id)?.matchup||""));
+      const championCode=titleFinal&&stageParticipant(titleFinal,"winner",category);
+      const champion=championCode?`<div class="champion-banner"><span aria-hidden="true">🏆</span><div><small>Campione ${esc(category)}</small><strong>${esc(staticData.teams[championCode]||championCode)}</strong></div></div>`:"";
+      return `<section class="bracket-section"><h3>${esc(section.title)}</h3>${champion}<div class="bracket-headings"><span>Semifinali</span><span>Finali</span></div><div class="bracket-grid"><div class="bracket-round">${semis}</div><div class="bracket-lines" aria-hidden="true"><i></i></div><div class="bracket-round">${finals}</div></div></section>`;
+    }).join("")||'<div class="empty">Fase finale non prevista.</div>';
+  }
+
+  function restoreSelections(){
+    try{
+      const saved=JSON.parse(localStorage.getItem(selectionKey)||"{}");
+      ["categoryFilter","courtFilter","teamSelect","standingsCategory","finalsCategory"].forEach(id=>{
+        const select=$(id), value=saved[id];
+        if(value && [...select.options].some(option=>option.value===value))select.value=value;
+      });
+      $("upcomingOnly").checked=Boolean(saved.upcomingOnly);
+    }catch(error){console.warn("Impossibile ripristinare i filtri",error);}
+  }
+
+  function saveSelections(){
+    localStorage.setItem(selectionKey,JSON.stringify({
+      categoryFilter:$("categoryFilter").value,
+      courtFilter:$("courtFilter").value,
+      teamSelect:$("teamSelect").value,
+      standingsCategory:$("standingsCategory").value,
+      finalsCategory:$("finalsCategory").value,
+      upcomingOnly:$("upcomingOnly").checked
+    }));
   }
 
   function renderNotices(){
@@ -241,18 +375,19 @@
     const cacheKey=`volleystars-${config.activeName}`;
     const cached=JSON.parse(localStorage.getItem(cacheKey)||"null");
     const noticeRequest=fetchNotices().catch(()=>cached?.notices||[]);
-    try{const live=await fetchLiveMatches();if(live.length<20)throw new Error("Dati insufficienti");mergeLive(live);notices=await noticeRequest;const changes=cached?.matches?changedResults(cached.matches,matches):[];localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),matches,notices}));setSync("live",`Aggiornato ora · ${config.label}`);showResultToast(changes);}
-    catch(error){notices=await noticeRequest;if(cached?.matches){matches=cached.matches;setSync("error",`Offline · dati salvati ${new Date(cached.at).toLocaleString("it-IT")}`);}else setSync("error",`Calendario offline · risultati non sincronizzati (${config.label})`);}
+    try{const live=await fetchLiveMatches();if(live.length<20)throw new Error("Dati insufficienti");mergeLive(live);notices=await noticeRequest;const changes=cached?.matches?changedResults(cached.matches,matches):[];localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),matches,notices,standings:sheetStandings}));setSync("live",`Aggiornato ora · ${config.label}`);showResultToast(changes);}
+    catch(error){notices=await noticeRequest;if(cached?.matches){matches=cached.matches;sheetStandings=cached.standings||{};setSync("error",`Offline · dati salvati ${new Date(cached.at).toLocaleString("it-IT")}`);}else setSync("error",`Calendario offline · risultati non sincronizzati (${config.label})`);}
     finally{syncing=false;}
-    renderAgenda();renderTeams();renderNotices();
+    renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();
   }
 
-  $("resultsLink").href=config.editUrl;
   $("environmentInfo").textContent=`Configurazione attiva: ${config.label}. Foglio ${config.spreadsheetId}.`;
   document.querySelectorAll(".nav-item").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));button.classList.add("active");$(button.dataset.view).classList.add("active");}));
-  $("categoryFilter").addEventListener("change",renderAgenda);$("courtFilter").addEventListener("change",renderAgenda);$("teamSelect").addEventListener("change",renderTeams);$("refreshButton").addEventListener("click",sync);$("resultToastClose").addEventListener("click",hideResultToast);
-  populateTeams();renderAgenda();renderTeams();renderNotices();sync();setInterval(sync,60000);
+  document.addEventListener("click",event=>{const card=event.target.closest(".match-card");if(card)toggleMatchCard(card);});
+  document.addEventListener("keydown",event=>{const card=event.target.closest(".match-card");if(card&&(event.key==="Enter"||event.key===" ")){event.preventDefault();toggleMatchCard(card);}});
+  $("categoryFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("courtFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("upcomingOnly").addEventListener("change",()=>{saveSelections();renderAgenda();});$("teamSelect").addEventListener("change",()=>{saveSelections();renderTeams();});$("standingsCategory").addEventListener("change",()=>{saveSelections();renderStandings();});$("finalsCategory").addEventListener("change",()=>{saveSelections();renderFinals();});$("refreshButton").addEventListener("click",sync);$("resultToastClose").addEventListener("click",hideResultToast);
+  populateTeams();restoreSelections();renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();sync();setInterval(sync,60000);
   if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 
-  window.VolleyStarsTestApi={parseCsv,parseSheetCsv,parseGvizTable,parseNoticeTable,normalizeMatchup,resultOutcome,changedResults,matchScore,rankGroup,resolveQualificationText,resolvedMatchup};
+  window.VolleyStarsTestApi={parseCsv,parseSheetCsv,parseSheetRows,parseGvizTable,parseNoticeTable,normalizeMatchup,resultOutcome,changedResults,matchScore,rankGroup,resolveQualificationText,resolvedMatchup};
 })();

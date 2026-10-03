@@ -7,7 +7,7 @@
   <meta name="description" content="Agenda, risultati e turni volontari VolleyStars 2026">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
-  <title>VolleyStars 2026</title>
+  <title>VolleyStars 2026 · Area test</title>
 </head>
 <body>
   <header class="app-header">
@@ -15,7 +15,9 @@
       <p class="eyebrow">VOLLEYSTARS 2026</p>
       <h1>Il torneo, a portata di mano.</h1>
     </div>
-    <button id="refreshButton" class="icon-button" type="button" aria-label="Aggiorna dati" title="Aggiorna dati">↻</button>
+    <div class="header-actions">
+      <button id="refreshButton" class="icon-button" type="button" aria-label="Aggiorna dati" title="Aggiorna dati">↻</button>
+    </div>
   </header>
 
   <main>
@@ -25,13 +27,12 @@
     </section>
 
     <section id="agendaView" class="view active" aria-labelledby="agendaTab">
-      <div class="hero-card">
+      <div class="hero-card compact-hero">
         <div>
-          <p class="eyebrow light">AZIONE RAPIDA</p>
-          <h2>Aggiorna un risultato</h2>
-          <p>Apri direttamente il foglio usato dall’organizzazione.</p>
+          <p class="eyebrow light">VOLLEYSTARS 2026</p>
+          <h2>Consulta il torneo</h2>
+          <p>Calendario e risultati vengono aggiornati dal foglio ufficiale.</p>
         </div>
-        <a id="resultsLink" class="primary-button" target="_blank" rel="noopener">Apri il foglio <span>↗</span></a>
       </div>
 
       <div class="section-heading">
@@ -61,6 +62,14 @@
           </label>
         </div>
       </div>
+      <div class="agenda-options">
+        <span>Visualizzazione</span>
+        <label class="switch-control">
+          <span>Solo prossime</span>
+          <input id="upcomingOnly" type="checkbox">
+          <span class="switch-ui" aria-hidden="true"></span>
+        </label>
+      </div>
       <div id="upcomingList" class="card-list"></div>
     </section>
 
@@ -76,6 +85,44 @@
       </div>
       <div id="teamSummary" class="summary-grid"></div>
       <div id="teamMatches" class="card-list"></div>
+    </section>
+
+    <section id="standingsView" class="view" aria-labelledby="standingsTab">
+      <div class="section-heading stacked">
+        <div>
+          <p class="eyebrow">CLASSIFICA</p>
+          <h2>Classifiche dei gironi</h2>
+        </div>
+        <label class="team-picker">Categoria
+          <select id="standingsCategory">
+            <option value="U13">U13</option>
+            <option value="U14">U14</option>
+            <option value="U15">U15</option>
+            <option value="U17">U17</option>
+          </select>
+        </label>
+      </div>
+      <p class="standings-note">Aggiornata con le gare concluse. A parità di punti e set, decide il QP: punti fatti ÷ punti subiti.</p>
+      <div id="standingsList" class="standings-list"></div>
+    </section>
+
+    <section id="finalsView" class="view" aria-labelledby="finalsTab">
+      <div class="section-heading stacked">
+        <div>
+          <p class="eyebrow">FASE FINALE</p>
+          <h2>Il tabellone del torneo</h2>
+        </div>
+        <label class="team-picker">Categoria
+          <select id="finalsCategory">
+            <option value="U13">U13</option>
+            <option value="U14">U14</option>
+            <option value="U15">U15</option>
+            <option value="U17">U17</option>
+          </select>
+        </label>
+      </div>
+      <p class="standings-note">Squadre e risultati si aggiornano dal foglio ufficiale.</p>
+      <div id="finalsBracket" class="finals-bracket"></div>
     </section>
 
     <section id="infoView" class="view" aria-labelledby="infoTab">
@@ -100,6 +147,8 @@
   <nav class="bottom-nav" aria-label="Navigazione principale">
     <button id="agendaTab" class="nav-item active" data-view="agendaView" type="button"><span>◷</span>Agenda</button>
     <button id="teamsTab" class="nav-item" data-view="teamsView" type="button"><span>◎</span>Squadre</button>
+    <button id="standingsTab" class="nav-item" data-view="standingsView" type="button"><span>≡</span>Classifica</button>
+    <button id="finalsTab" class="nav-item" data-view="finalsView" type="button"><span>⌘</span>Finali</button>
     <button id="infoTab" class="nav-item" data-view="infoView" type="button"><span>i</span>Info</button>
   </nav>
 
