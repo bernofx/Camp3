@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11263f">
+  <meta name="description" content="Agenda, risultati e turni volontari VolleyStars 2026">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <title>VolleyStars 2026 · Sviluppo</title>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">VOLLEYSTARS 2026</p>
+      <h1>Il torneo, a portata di mano.</h1>
+    </div>
+    <div class="header-actions">
+      <button id="refreshButton" class="icon-button" type="button" aria-label="Aggiorna dati" title="Aggiorna dati">↻</button>
+      <button id="loginButton" class="login-button" type="button">Accesso admin</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="syncBanner" class="sync-banner" aria-live="polite">
+      <span class="sync-dot"></span>
+      <span id="syncText">Caricamento dati…</span>
+    </section>
+
+    <section id="agendaView" class="view active" aria-labelledby="agendaTab">
+      <div class="hero-card compact-hero">
+        <div>
+          <p class="eyebrow light">VOLLEYSTARS 2026</p>
+          <h2>Consulta il torneo</h2>
+          <p>Calendario e risultati vengono aggiornati dal database del torneo.</p>
+        </div>
+      </div>
+
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">AGENDA</p>
+          <h2>Prossimi appuntamenti</h2>
+        </div>
+        <div class="agenda-filters">
+          <label class="compact-filter">Categoria
+            <select id="categoryFilter">
+              <option value="all">Tutte</option>
+              <option value="U13">U13</option>
+              <option value="U14">U14</option>
+              <option value="U15">U15</option>
+              <option value="U17">U17</option>
+            </select>
+          </label>
+          <label class="compact-filter">Campo
+            <select id="courtFilter">
+              <option value="all">Tutti</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="agenda-options">
+        <span>Visualizzazione</span>
+        <label class="switch-control">
+          <span>Solo prossime</span>
+          <input id="upcomingOnly" type="checkbox">
+          <span class="switch-ui" aria-hidden="true"></span>
+        </label>
+      </div>
+      <div id="upcomingList" class="card-list"></div>
+    </section>
+
+    <section id="teamsView" class="view" aria-labelledby="teamsTab">
+      <div class="section-heading stacked">
+        <div>
+          <p class="eyebrow">SQUADRE</p>
+          <h2>Risultati e programma</h2>
+        </div>
+        <label class="team-picker">Scegli una squadra
+          <select id="teamSelect"></select>
+        </label>
+      </div>
+      <div id="teamSummary" class="summary-grid"></div>
+      <div id="teamMatches" class="card-list"></div>
+    </section>
+
+    <section id="standingsView" class="view" aria-labelledby="standingsTab">
+      <div class="section-heading stacked">
+        <div>
+          <p class="eyebrow">CLASSIFICA</p>
+          <h2>Classifiche dei gironi</h2>
+        </div>
+        <label class="team-picker">Categoria
+          <select id="standingsCategory">
+            <option value="U13">U13</option>
+            <option value="U14">U14</option>
+            <option value="U15">U15</option>
+            <option value="U17">U17</option>
+          </select>
+        </label>
+      </div>
+      <p class="standings-note">Aggiornata con le gare concluse. A parità di punti e set, decide il QP: punti fatti ÷ punti subiti.</p>
+      <div id="standingsList" class="standings-list"></div>
+    </section>
+
+    <section id="finalsView" class="view" aria-labelledby="finalsTab">
+      <div class="section-heading stacked">
+        <div>
+          <p class="eyebrow">FASE FINALE</p>
+          <h2>Il tabellone del torneo</h2>
+        </div>
+        <label class="team-picker">Categoria
+          <select id="finalsCategory">
+            <option value="U13">U13</option>
+            <option value="U14">U14</option>
+            <option value="U15">U15</option>
+            <option value="U17">U17</option>
+          </select>
+        </label>
+      </div>
+      <p class="standings-note">Squadre e risultati si aggiornano dal database del torneo.</p>
+      <div id="finalsBracket" class="finals-bracket"></div>
+    </section>
+
+    <section id="adminView" class="view" aria-labelledby="adminTab">
+      <div class="section-heading stacked">
+        <div><p class="eyebrow">AMMINISTRAZIONE</p><h2>Gestione torneo</h2></div>
+      </div>
+      <p class="standings-note">Configura struttura, squadre e calendario. Le modifiche sono salvate nel database della v1.</p>
+      <div class="admin-sections">
+        <details class="admin-card" open><summary>Categorie</summary>
+          <form id="categoryForm" class="admin-form"><input name="code" placeholder="Codice (U13)" required><input name="name" placeholder="Nome" required><label>Colore <input name="color" type="color" value="#dff4ea"></label><input name="sortOrder" type="number" placeholder="Ordine"><button type="submit">Salva categoria</button></form><div id="categoryAdminList" class="admin-list"></div>
+        </details>
+        <details class="admin-card"><summary>Gironi</summary>
+          <form id="groupForm" class="admin-form"><select name="categoryCode" required></select><input name="code" placeholder="Codice (A)" required><input name="name" placeholder="Nome girone" required><input name="sortOrder" type="number" placeholder="Ordine"><button type="submit">Salva girone</button></form><div id="groupAdminList" class="admin-list"></div>
+        </details>
+        <details class="admin-card"><summary>Squadre</summary>
+          <form id="teamForm" class="admin-form"><input name="code" placeholder="Codice squadra" required><input name="name" placeholder="Nome squadra" required><select name="categoryCode" required></select><input name="groupCode" placeholder="Girone"><button type="submit">Salva squadra</button></form><div id="teamAdminList" class="admin-list"></div>
+        </details>
+        <details class="admin-card"><summary>Partite</summary>
+          <form id="matchForm" class="admin-form match-admin-form"><input name="gameId" placeholder="N. gara (4 cifre)" required><select name="categoryCode" required></select><input name="groupCode" placeholder="Girone"><select name="phase"><option value="girone">Girone</option><option value="fase-finale">Semifinale</option><option value="finale">Finale</option></select><label>Data <input name="date" type="date" required></label><label>Ora <input name="time" type="time" required></label><input name="court" placeholder="Campo" required><input name="homeRef" placeholder="Squadra casa/codice" required><input name="awayRef" placeholder="Squadra ospite/codice" required><input name="scorekeeper" placeholder="Refertista"><input name="referee" placeholder="Arbitro"><input name="courtManager" placeholder="Responsabile campo"><button type="submit">Salva partita</button></form><div id="matchAdminList" class="admin-list match-admin-list"></div>
+        </details>
+      </div>
+    </section>
+
+    <section id="infoView" class="view" aria-labelledby="infoTab">
+      <div class="section-heading stacked">
+        <div>
+          <p class="eyebrow">SERVIZIO</p>
+          <h2>Informazioni per i volontari</h2>
+        </div>
+      </div>
+      <article class="info-card">
+        <h3>Come vengono aggiornati i dati</h3>
+        <p>L’app usa il proprio database per calendario e risultati. Se manca la rete, mostra l’ultima versione salvata sul dispositivo.</p>
+      </article>
+      <div id="noticeList"></div>
+      <article class="info-card">
+        <h3>Ambiente dati</h3>
+        <p id="environmentInfo"></p>
+      </article>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Navigazione principale">
+    <button id="agendaTab" class="nav-item active" data-view="agendaView" type="button"><span>◷</span>Agenda</button>
+    <button id="teamsTab" class="nav-item" data-view="teamsView" type="button"><span>◎</span>Squadre</button>
+    <button id="standingsTab" class="nav-item" data-view="standingsView" type="button"><span>≡</span>Classifica</button>
+    <button id="finalsTab" class="nav-item" data-view="finalsView" type="button"><span>⌘</span>Finali</button>
+    <button id="adminTab" class="nav-item" data-view="adminView" type="button" hidden><span>⚙</span>Gestione</button>
+    <button id="infoTab" class="nav-item" data-view="infoView" type="button"><span>i</span>Info</button>
+  </nav>
+
+  <dialog id="loginDialog" class="app-dialog"><form id="loginForm" class="dialog-card"><button class="dialog-close" type="button" data-close-dialog="loginDialog" aria-label="Chiudi">×</button><p class="eyebrow">AMMINISTRATORI</p><h2>Accedi</h2><label>Username<input name="username" autocomplete="username" required></label><label>Password<input name="password" type="password" autocomplete="current-password" required></label><p id="loginError" class="form-error"></p><button class="primary-action" type="submit">Accedi</button></form></dialog>
+
+  <dialog id="resultDialog" class="app-dialog"><form id="resultForm" class="dialog-card"><button class="dialog-close" type="button" data-close-dialog="resultDialog" aria-label="Chiudi">×</button><p class="eyebrow">RISULTATO</p><h2 id="resultDialogTitle">Modifica partita</h2><input name="gameId" type="hidden"><input name="category" type="hidden"><label>Risultato finale<input name="result" placeholder="es. 2-1"></label><div class="set-grid"><label>1° set<input name="set1" placeholder="25-20"></label><label>2° set<input name="set2" placeholder="25-18"></label><label>3° set<input name="set3" placeholder="15-12"></label></div><p id="resultError" class="form-error"></p><button class="primary-action" type="submit">Salva risultato</button></form></dialog>
+
+  <aside id="resultToast" class="result-toast" role="status" aria-live="polite" aria-hidden="true">
+    <button id="resultToastClose" type="button" aria-label="Chiudi notifica">×</button>
+    <strong>Nuovi risultati</strong>
+    <div id="resultToastBody"></div>
+  </aside>
+
+  <script src="config.js"></script>
+  <script src="static-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

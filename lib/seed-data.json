@@ -1,0 +1,1154 @@
+{
+  "teams": {
+    "131": "Intercomunale blu",
+    "132": "Cassano",
+    "133": "S. Agata",
+    "134": "Turate",
+    "135": "Intercomunale gialla",
+    "136": "Appiano",
+    "137": "Induno",
+    "138": "Cabiate",
+    "141": "Intercomunale",
+    "142": "Induno",
+    "143": "Como Volley",
+    "144": "S. Agata",
+    "161": "Intercomunale",
+    "162": "Como Volley",
+    "163": "Brenna",
+    "164": "Col Verde",
+    "165": "Cassano",
+    "166": "Carimate",
+    "167": "Appiano",
+    "168": "Cabiate",
+    "181": "Intercomunale",
+    "182": "Longone",
+    "183": "Col Verde",
+    "184": "Induno",
+    "185": "Cassano",
+    "186": "S. Agata",
+    "187": "Agorà",
+    "188": "Cabiate"
+  },
+  "matches": [
+    {
+      "category": "U13",
+      "date": "2026-10-02",
+      "gameId": "0100",
+      "time": "18:00",
+      "court": "5",
+      "matchup": "132 - 134",
+      "scorekeeper": "TURATE",
+      "referee": "GRAVANTE",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-02",
+      "gameId": "0101",
+      "time": "18:00",
+      "court": "4",
+      "matchup": "135 - 136",
+      "scorekeeper": "APPIANO",
+      "referee": "LIARDO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-02",
+      "gameId": "0102",
+      "time": "19:10",
+      "court": "5",
+      "matchup": "131 - 132",
+      "scorekeeper": "CASSANO",
+      "referee": "PICCOLO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-02",
+      "gameId": "0103",
+      "time": "19:10",
+      "court": "3",
+      "matchup": "133 - 134",
+      "scorekeeper": "S.AGATA",
+      "referee": "LIVIO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-02",
+      "gameId": "0104",
+      "time": "19:10",
+      "court": "4",
+      "matchup": "135 - 138",
+      "scorekeeper": "CABIATE",
+      "referee": "LIARDO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-02",
+      "gameId": "0105",
+      "time": "20:20",
+      "court": "5",
+      "matchup": "131 - 133",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "PICCOLO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-02",
+      "gameId": "0106",
+      "time": "20:20",
+      "court": "4",
+      "matchup": "137 - 138",
+      "scorekeeper": "INDUNO",
+      "referee": "VIOLETTI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-03",
+      "gameId": "0107",
+      "time": "14:30",
+      "court": "5",
+      "matchup": "131 - 134",
+      "scorekeeper": "TURATE",
+      "referee": "TOMMY",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-03",
+      "gameId": "0108",
+      "time": "15:40",
+      "court": "5",
+      "matchup": "132 - 133",
+      "scorekeeper": "S.AGATA",
+      "referee": "TOMMY",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-03",
+      "gameId": "0109",
+      "time": "16:50",
+      "court": "5",
+      "matchup": "135 - 137",
+      "scorekeeper": "INTERCOMUNALE",
+      "referee": "AFFINI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-03",
+      "gameId": "0110",
+      "time": "18:00",
+      "court": "5",
+      "matchup": "136 - 138",
+      "scorekeeper": "APPIANO",
+      "referee": "AFFINI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-03",
+      "gameId": "0111",
+      "time": "19:10",
+      "court": "5",
+      "matchup": "136 - 137",
+      "scorekeeper": "INDUNO",
+      "referee": "BOERO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-04",
+      "gameId": "0112",
+      "time": "09:00",
+      "court": "5",
+      "matchup": "C3 - D4",
+      "scorekeeper": "C3",
+      "referee": "VIOLETTI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-04",
+      "gameId": "0113",
+      "time": "10:10",
+      "court": "5",
+      "matchup": "D3 - C4",
+      "scorekeeper": "D3",
+      "referee": "CANTAGALLI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-04",
+      "gameId": "0114",
+      "time": "11:20",
+      "court": "5",
+      "matchup": "C1 - D2",
+      "scorekeeper": "C1",
+      "referee": "RELLA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-04",
+      "gameId": "0115",
+      "time": "12:30",
+      "court": "5",
+      "matchup": "D1 - C2",
+      "scorekeeper": "D1",
+      "referee": "VIOLETTI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-04",
+      "gameId": "0116",
+      "time": "13:30",
+      "court": "5",
+      "matchup": "FINALE 7°-8°",
+      "scorekeeper": "DA DEFINIRE",
+      "referee": "AFFINI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-04",
+      "gameId": "0117",
+      "time": "14:45",
+      "court": "5",
+      "matchup": "FINALE 5°-6°",
+      "scorekeeper": "DA DEFINIRE",
+      "referee": "AFFINI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-04",
+      "gameId": "0118",
+      "time": "16:00",
+      "court": "5",
+      "matchup": "FINALE 3°-4°",
+      "scorekeeper": "INTERCOMUNALE",
+      "referee": "FEDERALI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U13",
+      "date": "2026-10-04",
+      "gameId": "0119",
+      "time": "17:15",
+      "court": "2",
+      "matchup": "FINALE 1°-2°",
+      "scorekeeper": "INTERCOMUNALE",
+      "referee": "FEDERALI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-02",
+      "gameId": "0200",
+      "time": "21:30",
+      "court": "4",
+      "matchup": "141 - 143",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "SARCHI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-03",
+      "gameId": "0201",
+      "time": "14:30",
+      "court": "4",
+      "matchup": "143 - 144",
+      "scorekeeper": "SANTAGATA",
+      "referee": "RELLA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-03",
+      "gameId": "0202",
+      "time": "15:40",
+      "court": "4",
+      "matchup": "142 - 144",
+      "scorekeeper": "SANTAGATA",
+      "referee": "LIVIO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-03",
+      "gameId": "0203",
+      "time": "16:50",
+      "court": "4",
+      "matchup": "142 - 143",
+      "scorekeeper": "INDUNO",
+      "referee": "RELLA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-03",
+      "gameId": "0204",
+      "time": "18:00",
+      "court": "4",
+      "matchup": "141 - 142",
+      "scorekeeper": "INDUNO",
+      "referee": "NOEMI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-03",
+      "gameId": "0205",
+      "time": "19:10",
+      "court": "4",
+      "matchup": "141 - 144",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "CANTAGALLI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-04",
+      "gameId": "0206",
+      "time": "09:00",
+      "court": "4",
+      "matchup": "C2 - C3",
+      "scorekeeper": "C2",
+      "referee": "LIARDO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-04",
+      "gameId": "0207",
+      "time": "10:10",
+      "court": "4",
+      "matchup": "C1 - C4",
+      "scorekeeper": "C1",
+      "referee": "LIARDO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-04",
+      "gameId": "0208",
+      "time": "14:45",
+      "court": "2",
+      "matchup": "FINALE 3°-4°",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "FEDERALI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U14",
+      "date": "2026-10-04",
+      "gameId": "0209",
+      "time": "16:00",
+      "court": "2",
+      "matchup": "FINALE 1°-2°",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "FEDERALI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-02",
+      "gameId": "0300",
+      "time": "18:00",
+      "court": "2",
+      "matchup": "161 - 163",
+      "scorekeeper": "INTERCOMUNALE",
+      "referee": "CANTAGALLI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-02",
+      "gameId": "0301",
+      "time": "18:00",
+      "court": "3",
+      "matchup": "165 - 167",
+      "scorekeeper": "CASSANO",
+      "referee": "LIVIO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-02",
+      "gameId": "0302",
+      "time": "20:20",
+      "court": "2",
+      "matchup": "165 - 168",
+      "scorekeeper": "CABIATE",
+      "referee": "CANTAGALLI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-02",
+      "gameId": "0303",
+      "time": "20:20",
+      "court": "3",
+      "matchup": "162 - 164",
+      "scorekeeper": "COMO",
+      "referee": "SARCHI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-02",
+      "gameId": "0304",
+      "time": "21:30",
+      "court": "3",
+      "matchup": "163 - 164",
+      "scorekeeper": "BRENNA",
+      "referee": "SANTINON",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-03",
+      "gameId": "0305",
+      "time": "14:30",
+      "court": "2",
+      "matchup": "161 - 164",
+      "scorekeeper": "INTERCOMUNALE",
+      "referee": "CANTAGALLI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-03",
+      "gameId": "0306",
+      "time": "14:30",
+      "court": "3",
+      "matchup": "165 - 166",
+      "scorekeeper": "CASSANO",
+      "referee": "BOERO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-03",
+      "gameId": "0307",
+      "time": "15:40",
+      "court": "2",
+      "matchup": "162 - 161",
+      "scorekeeper": "COMO",
+      "referee": "SARCHI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-03",
+      "gameId": "0308",
+      "time": "15:40",
+      "court": "3",
+      "matchup": "166 - 168",
+      "scorekeeper": "CARIMATE",
+      "referee": "BOERO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-03",
+      "gameId": "0309",
+      "time": "16:50",
+      "court": "2",
+      "matchup": "162 - 163",
+      "scorekeeper": "BRENNA",
+      "referee": "SANTINON",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-03",
+      "gameId": "0310",
+      "time": "16:50",
+      "court": "3",
+      "matchup": "167 - 168",
+      "scorekeeper": "CABIATE",
+      "referee": "NOEMI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-03",
+      "gameId": "0311",
+      "time": "18:00",
+      "court": "3",
+      "matchup": "166 - 167",
+      "scorekeeper": "CARIMATE",
+      "referee": "LIVIO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-04",
+      "gameId": "0312",
+      "time": "09:00",
+      "court": "3",
+      "matchup": "C3 - D4",
+      "scorekeeper": "C3",
+      "referee": "BRENNA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-04",
+      "gameId": "0313",
+      "time": "10:10",
+      "court": "3",
+      "matchup": "D3 - C4",
+      "scorekeeper": "D3",
+      "referee": "BRENNA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-04",
+      "gameId": "0314",
+      "time": "11:20",
+      "court": "3",
+      "matchup": "C1 - D2",
+      "scorekeeper": "C1",
+      "referee": "BRENNA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-04",
+      "gameId": "0315",
+      "time": "12:30",
+      "court": "3",
+      "matchup": "D1 - C2",
+      "scorekeeper": "D1",
+      "referee": "BRENNA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-04",
+      "gameId": "0316",
+      "time": "13:30",
+      "court": "3",
+      "matchup": "FINALE 7°-8°",
+      "scorekeeper": "DA DEFINIRE",
+      "referee": "SARCHI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-04",
+      "gameId": "0317",
+      "time": "14:45",
+      "court": "3",
+      "matchup": "FINALE 5°-6°",
+      "scorekeeper": "DA DEFINIRE",
+      "referee": "CANTAGALLI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-04",
+      "gameId": "0318",
+      "time": "16:00",
+      "court": "3",
+      "matchup": "FINALE 3°-4°",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "FEDERALI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U15",
+      "date": "2026-10-04",
+      "gameId": "0319",
+      "time": "17:15",
+      "court": "3",
+      "matchup": "FINALE 1°-2°",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "FEDERALI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-02",
+      "gameId": "0400",
+      "time": "18:00",
+      "court": "1",
+      "matchup": "185 - 187",
+      "scorekeeper": "INDUNO",
+      "referee": "GANDINI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-02",
+      "gameId": "0401",
+      "time": "19:10",
+      "court": "1",
+      "matchup": "181 - 183",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "GANDINI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-02",
+      "gameId": "0402",
+      "time": "19:10",
+      "court": "2",
+      "matchup": "185 - 186",
+      "scorekeeper": "CASSANO",
+      "referee": "SANTINON",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-02",
+      "gameId": "0403",
+      "time": "20:20",
+      "court": "1",
+      "matchup": "181 - 184",
+      "scorekeeper": "INDUNO",
+      "referee": "BRENNA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-02",
+      "gameId": "0404",
+      "time": "21:30",
+      "court": "1",
+      "matchup": "183 - 184",
+      "scorekeeper": "COLVERDE",
+      "referee": "BRENNA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-03",
+      "gameId": "0405",
+      "time": "14:30",
+      "court": "1",
+      "matchup": "186 - 188",
+      "scorekeeper": "CABIATE",
+      "referee": "SANTINON",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-03",
+      "gameId": "0406",
+      "time": "15:40",
+      "court": "1",
+      "matchup": "182 - 183",
+      "scorekeeper": "LONGONE",
+      "referee": "SANTINON",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-03",
+      "gameId": "0407",
+      "time": "16:50",
+      "court": "1",
+      "matchup": "187 - 188",
+      "scorekeeper": "AGORA'",
+      "referee": "BRENNA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-03",
+      "gameId": "0408",
+      "time": "18:00",
+      "court": "1",
+      "matchup": "181 - 182",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "BRENNA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-03",
+      "gameId": "0409",
+      "time": "18:00",
+      "court": "2",
+      "matchup": "185 - 188",
+      "scorekeeper": "CASSANO",
+      "referee": "CANTAGALLI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-03",
+      "gameId": "0410",
+      "time": "19:10",
+      "court": "1",
+      "matchup": "182 - 184",
+      "scorekeeper": "INDUNO",
+      "referee": "BRENNA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-03",
+      "gameId": "0411",
+      "time": "19:10",
+      "court": "2",
+      "matchup": "186 - 187",
+      "scorekeeper": "SANTAGATA",
+      "referee": "SARCHI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-04",
+      "gameId": "0412",
+      "time": "09:00",
+      "court": "1",
+      "matchup": "C3 - D4",
+      "scorekeeper": "C3",
+      "referee": "RELLA",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-04",
+      "gameId": "0413",
+      "time": "10:10",
+      "court": "1",
+      "matchup": "D3 - C4",
+      "scorekeeper": "D3",
+      "referee": "GANDINI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-04",
+      "gameId": "0414",
+      "time": "11:20",
+      "court": "1",
+      "matchup": "C1 - D2",
+      "scorekeeper": "C1",
+      "referee": "GANDINI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-04",
+      "gameId": "0415",
+      "time": "12:30",
+      "court": "1",
+      "matchup": "D1 - C2",
+      "scorekeeper": "D1",
+      "referee": "BOERO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-04",
+      "gameId": "0416",
+      "time": "13:30",
+      "court": "1",
+      "matchup": "FINALE 7°-8°",
+      "scorekeeper": "DA DEFINIRE",
+      "referee": "BOERO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-04",
+      "gameId": "0417",
+      "time": "14:45",
+      "court": "1",
+      "matchup": "FINALE 5°-6°",
+      "scorekeeper": "DA DEFINIRE",
+      "referee": "BOERO",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-04",
+      "gameId": "0418",
+      "time": "16:00",
+      "court": "1",
+      "matchup": "FINALE 3°-4°",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "FEDERALI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "category": "U17",
+      "date": "2026-10-04",
+      "gameId": "0419",
+      "time": "17:15",
+      "court": "1",
+      "matchup": "FINALE 1°-2°",
+      "scorekeeper": "POLISPORTIVA",
+      "referee": "FEDERALI",
+      "result": "",
+      "sets": [
+        "",
+        "",
+        ""
+      ]
+    }
+  ]
+}
