@@ -14,7 +14,11 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS categories (code TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#dff4ea', sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS tournament_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, category_code TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, UNIQUE(category_code, code))`,
   `CREATE TABLE IF NOT EXISTS teams (code TEXT PRIMARY KEY, name TEXT NOT NULL, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1)`,
+  `CREATE TABLE IF NOT EXISTS courts (code TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
+  `CREATE TABLE IF NOT EXISTS tournament_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS staff (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, can_referee INTEGER NOT NULL DEFAULT 0, can_scorekeeper INTEGER NOT NULL DEFAULT 0, can_court_manager INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS matches (game_id TEXT PRIMARY KEY, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', phase TEXT NOT NULL DEFAULT 'girone', match_date TEXT NOT NULL, match_time TEXT NOT NULL, court TEXT NOT NULL DEFAULT '', home_ref TEXT NOT NULL, away_ref TEXT NOT NULL, scorekeeper TEXT NOT NULL DEFAULT '', referee TEXT NOT NULL DEFAULT '', court_manager TEXT NOT NULL DEFAULT '', result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'scheduled')`,
+  `CREATE TABLE IF NOT EXISTS final_links (target_game_id TEXT PRIMARY KEY, category_code TEXT NOT NULL, section_title TEXT NOT NULL DEFAULT 'Fase finale', section_order INTEGER NOT NULL DEFAULT 0, target_order INTEGER NOT NULL DEFAULT 0, home_kind TEXT NOT NULL, home_ref TEXT NOT NULL, away_kind TEXT NOT NULL, away_ref TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS result_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, category TEXT NOT NULL, result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', user_id INTEGER NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`,
   `CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(match_date, match_time)`,
@@ -43,6 +47,27 @@ export async function ensureDatabase() {
   ready ??= (async () => {
     const db = database();
     await db.batch(schema.map(statement => db.prepare(statement)));
+    const infrastructure = [
+      db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) VALUES('match_duration_minutes','70')"),
+      ...["1","2","3","4","5"].map((code,index)=>db.prepare("INSERT OR IGNORE INTO courts(code,name,sort_order,active) VALUES(?,?,?,1)").bind(code,`Campo ${code}`,index+1)),
+    ];
+    const links = [
+      ["0116","U13","Dal 5° all’8° posto",2,2,"loser","0112","loser","0113"], ["0117","U13","Dal 5° all’8° posto",2,1,"winner","0112","winner","0113"],
+      ["0118","U13","Titolo e podio",1,2,"loser","0114","loser","0115"], ["0119","U13","Titolo e podio",1,1,"winner","0114","winner","0115"],
+      ["0208","U14","Titolo e podio",1,2,"loser","0206","loser","0207"], ["0209","U14","Titolo e podio",1,1,"winner","0206","winner","0207"],
+      ["0316","U15","Dal 5° all’8° posto",2,2,"loser","0312","loser","0313"], ["0317","U15","Dal 5° all’8° posto",2,1,"winner","0312","winner","0313"],
+      ["0318","U15","Titolo e podio",1,2,"loser","0314","loser","0315"], ["0319","U15","Titolo e podio",1,1,"winner","0314","winner","0315"],
+      ["0416","U17","Dal 5° all’8° posto",2,2,"loser","0412","loser","0413"], ["0417","U17","Dal 5° all’8° posto",2,1,"winner","0412","winner","0413"],
+      ["0418","U17","Titolo e podio",1,2,"loser","0414","loser","0415"], ["0419","U17","Titolo e podio",1,1,"winner","0414","winner","0415"],
+    ];
+    infrastructure.push(...links.map(item=>db.prepare(`INSERT OR IGNORE INTO final_links(target_game_id,category_code,section_title,section_order,target_order,home_kind,home_ref,away_kind,away_ref) VALUES(?,?,?,?,?,?,?,?,?)`).bind(...item)));
+    const staffRoles=new Map<string,{referee:number;scorekeeper:number}>();
+    for(const match of seed.matches){
+      if(match.referee){const role=staffRoles.get(match.referee)||{referee:0,scorekeeper:0};role.referee=1;staffRoles.set(match.referee,role);}
+      if(match.scorekeeper){const role=staffRoles.get(match.scorekeeper)||{referee:0,scorekeeper:0};role.scorekeeper=1;staffRoles.set(match.scorekeeper,role);}
+    }
+    infrastructure.push(...[...staffRoles.entries()].map(([name,roles])=>db.prepare("INSERT OR IGNORE INTO staff(name,can_referee,can_scorekeeper,can_court_manager,active) VALUES(?,?,?,?,1)").bind(name,roles.referee,roles.scorekeeper,0)));
+    await db.batch(infrastructure);
     const count = await db.prepare("SELECT COUNT(*) AS count FROM categories").first<{count:number}>();
     if (Number(count?.count || 0) > 0) return;
     const seedStatements = [];

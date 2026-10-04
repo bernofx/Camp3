@@ -132,7 +132,12 @@
       </div>
       <p class="standings-note">Configura struttura, squadre e calendario. Le modifiche sono salvate nel database della v1.</p>
       <div class="admin-sections">
-        <details class="admin-card" open><summary>Categorie</summary>
+        <details class="admin-card" open><summary>Campi e durata</summary>
+          <p class="admin-help">Le partite possono essere programmate solo sui campi presenti qui. La durata viene usata per rilevare tutte le sovrapposizioni.</p>
+          <form id="settingsForm" class="admin-form"><label>Durata indicativa partita (minuti)<input name="matchDurationMinutes" type="number" min="30" max="180" step="5" required></label><button type="submit">Salva durata</button></form>
+          <form id="courtForm" class="admin-form"><input name="code" placeholder="Codice campo" required><input name="name" placeholder="Nome (es. Palestra 1)" required><input name="sortOrder" type="number" placeholder="Ordine"><button type="submit">Salva campo</button></form><div id="courtAdminList" class="admin-list"></div>
+        </details>
+        <details class="admin-card"><summary>Categorie</summary>
           <form id="categoryForm" class="admin-form"><input name="code" placeholder="Codice (U13)" required><input name="name" placeholder="Nome" required><label>Colore <input name="color" type="color" value="#dff4ea"></label><input name="sortOrder" type="number" placeholder="Ordine"><button type="submit">Salva categoria</button></form><div id="categoryAdminList" class="admin-list"></div>
         </details>
         <details class="admin-card"><summary>Gironi</summary>
@@ -141,8 +146,16 @@
         <details class="admin-card"><summary>Squadre</summary>
           <form id="teamForm" class="admin-form"><input name="code" placeholder="Codice squadra" required><input name="name" placeholder="Nome squadra" required><select name="categoryCode" required></select><input name="groupCode" placeholder="Girone"><button type="submit">Salva squadra</button></form><div id="teamAdminList" class="admin-list"></div>
         </details>
+        <details class="admin-card"><summary>Staff</summary>
+          <p class="admin-help">Definisci qui chi può essere assegnato alle partite e con quali ruoli.</p>
+          <form id="staffForm" class="admin-form"><input name="id" type="hidden"><input name="name" placeholder="Nome o sigla" required><label><input name="canReferee" type="checkbox" value="1"> Arbitro</label><label><input name="canScorekeeper" type="checkbox" value="1"> Refertista</label><label><input name="canCourtManager" type="checkbox" value="1"> Responsabile di campo</label><button type="submit">Salva persona</button></form><div id="staffAdminList" class="admin-list"></div>
+        </details>
         <details class="admin-card"><summary>Partite</summary>
-          <form id="matchForm" class="admin-form match-admin-form"><input name="gameId" placeholder="N. gara (4 cifre)" required><select name="categoryCode" required></select><input name="groupCode" placeholder="Girone"><select name="phase"><option value="girone">Girone</option><option value="fase-finale">Semifinale</option><option value="finale">Finale</option></select><label>Data <input name="date" type="date" required></label><label>Ora <input name="time" type="time" required></label><input name="court" placeholder="Campo" required><input name="homeRef" placeholder="Squadra casa/codice" required><input name="awayRef" placeholder="Squadra ospite/codice" required><input name="scorekeeper" placeholder="Refertista"><input name="referee" placeholder="Arbitro"><input name="courtManager" placeholder="Responsabile campo"><button type="submit">Salva partita</button></form><div id="matchAdminList" class="admin-list match-admin-list"></div>
+          <form id="matchForm" class="admin-form match-admin-form"><input name="gameId" placeholder="N. gara (4 cifre)" required><select name="categoryCode" required></select><input name="groupCode" placeholder="Girone"><select name="phase"><option value="girone">Girone</option><option value="fase-finale">Semifinale</option><option value="finale">Finale</option></select><label>Data <input name="date" type="date" required></label><label>Ora <input name="time" type="time" required></label><label>Campo <select name="court" required></select></label><input name="homeRef" placeholder="Squadra/codice o posizione (es. C1)" required><input name="awayRef" placeholder="Squadra/codice o posizione (es. D2)" required><label>Refertista<select name="scorekeeper"></select></label><label>Arbitro<select name="referee"></select></label><label>Responsabile campo<select name="courtManager"></select></label><button type="submit">Salva partita</button></form><div id="matchAdminList" class="admin-list match-admin-list"></div>
+        </details>
+        <details class="admin-card"><summary>Accoppiamenti fase finale</summary>
+          <p class="admin-help">Collega ogni finale a vincente o perdente di gare precedenti, oppure a una squadra o posizione di girone.</p>
+          <form id="finalLinkForm" class="admin-form match-admin-form"><input name="targetGameId" placeholder="Gara destinazione" required><select name="categoryCode" required></select><input name="sectionTitle" placeholder="Sezione (es. Titolo e podio)" required><input name="sectionOrder" type="number" placeholder="Ordine sezione"><input name="targetOrder" type="number" placeholder="Ordine finale"><label>Origine squadra 1<select name="homeKind"><option value="winner">Vincente gara</option><option value="loser">Perdente gara</option><option value="team">Squadra</option><option value="rank">Posizione girone</option><option value="literal">Testo libero</option></select></label><input name="homeRef" placeholder="N. gara, squadra o posizione" required><label>Origine squadra 2<select name="awayKind"><option value="winner">Vincente gara</option><option value="loser">Perdente gara</option><option value="team">Squadra</option><option value="rank">Posizione girone</option><option value="literal">Testo libero</option></select></label><input name="awayRef" placeholder="N. gara, squadra o posizione" required><button type="submit">Salva accoppiamento</button></form><div id="finalLinkAdminList" class="admin-list"></div>
         </details>
       </div>
     </section>

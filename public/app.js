@@ -7,6 +7,10 @@
   let currentUser = null;
   let categoriesCatalog = [];
   let groupsCatalog = [];
+  let courtsCatalog = [];
+  let staffCatalog = [];
+  let settingsCatalog = {match_duration_minutes:"70"};
+  let finalLinksCatalog = [];
   let teamsCatalog = Object.entries(staticData.teams).map(([code,name])=>({code,name,categoryCode:`U${code.slice(0,2)}`,groupCode:""}));
   let teamNames = {...staticData.teams};
   let toastTimer;
@@ -18,18 +22,8 @@
     U15:{C:["161","162","163","164"],D:["165","166","167","168"]},
     U17:{C:["181","182","183","184"],D:["185","186","187","188"]}
   };
-  const finalFlows = {
-    U13:{"0116":["loser","0112","0113"],"0117":["winner","0112","0113"],"0118":["loser","0114","0115"],"0119":["winner","0114","0115"]},
-    U14:{"0208":["loser","0206","0207"],"0209":["winner","0206","0207"]},
-    U15:{"0316":["loser","0312","0313"],"0317":["winner","0312","0313"],"0318":["loser","0314","0315"],"0319":["winner","0314","0315"]},
-    U17:{"0416":["loser","0412","0413"],"0417":["winner","0412","0413"],"0418":["loser","0414","0415"],"0419":["winner","0414","0415"]}
-  };
-  const finalBrackets = {
-    U13:[{title:"Titolo e podio",semis:["0114","0115"],finals:["0119","0118"]},{title:"Dal 5° all’8° posto",semis:["0112","0113"],finals:["0117","0116"]}],
-    U14:[{title:"Titolo e podio",semis:["0206","0207"],finals:["0209","0208"]}],
-    U15:[{title:"Titolo e podio",semis:["0314","0315"],finals:["0319","0318"]},{title:"Dal 5° all’8° posto",semis:["0312","0313"],finals:["0317","0316"]}],
-    U17:[{title:"Titolo e podio",semis:["0414","0415"],finals:["0419","0418"]},{title:"Dal 5° all’8° posto",semis:["0412","0413"],finals:["0417","0416"]}]
-  };
+  let finalFlows = {};
+  let finalBrackets = {};
 
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -146,14 +140,23 @@
     if(!response.ok)throw new Error("Database non disponibile");
     const payload=await response.json();
     if(!payload.ok||!Array.isArray(payload.matches))throw new Error("Dati non validi");
-    categoriesCatalog=payload.categories||[];groupsCatalog=payload.groups||[];teamsCatalog=payload.teams||[];
+    categoriesCatalog=payload.categories||[];groupsCatalog=payload.groups||[];teamsCatalog=payload.teams||[];courtsCatalog=payload.courts||[];staffCatalog=payload.staff||[];settingsCatalog=payload.settings||{match_duration_minutes:"70"};finalLinksCatalog=payload.finalLinks||[];
     teamNames=Object.fromEntries(teamsCatalog.map(team=>[team.code,team.name]));
     qualificationGroups={};
     categoriesCatalog.forEach(category=>{
       const groups=groupsCatalog.filter(group=>group.categoryCode===category.code);
       qualificationGroups[category.code]={};
-      groups.forEach((group,index)=>{const key=String.fromCharCode(67+index);qualificationGroups[category.code][key]=teamsCatalog.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).map(team=>team.code);});
+      groups.forEach((group,index)=>{const codes=teamsCatalog.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).map(team=>team.code),legacy=String.fromCharCode(67+index);qualificationGroups[category.code][legacy]=codes;});
     });
+    finalFlows={};finalBrackets={};
+    finalLinksCatalog.forEach(link=>{
+      (finalFlows[link.categoryCode]??={})[link.targetGameId]={home:[link.homeKind,link.homeRef],away:[link.awayKind,link.awayRef]};
+      const sections=finalBrackets[link.categoryCode]??=[];let section=sections.find(item=>item.title===link.sectionTitle);
+      if(!section){section={title:link.sectionTitle,sectionOrder:Number(link.sectionOrder)||0,semis:[],finals:[]};sections.push(section);finalBrackets[link.categoryCode]=sections;}
+      [[link.homeKind,link.homeRef],[link.awayKind,link.awayRef]].forEach(([kind,ref])=>{if((kind==="winner"||kind==="loser")&&!section.semis.includes(ref))section.semis.push(ref);});
+      section.finals.push({id:link.targetGameId,order:Number(link.targetOrder)||0});
+    });
+    Object.values(finalBrackets).forEach(sections=>{sections.sort((a,b)=>a.sectionOrder-b.sectionOrder);sections.forEach(section=>{section.finals.sort((a,b)=>a.order-b.order);section.finals=section.finals.map(item=>item.id);});});
     sheetStandings={};
     return payload.matches.map(match=>({category:match.category,date:match.date,time:match.time,gameId:match.gameId,court:match.court,matchup:match.awayRef?`${match.homeRef} - ${match.awayRef}`:match.homeRef,scorekeeper:match.scorekeeper,referee:match.referee,courtManager:match.courtManager,result:match.result,sets:[match.set1||"",match.set2||"",match.set3||""],phase:match.phase,status:match.status,groupCode:match.groupCode}));
   }
@@ -212,7 +215,11 @@
 
   function resolveQualificationText(value,category,sourceMatches=matches) {
     const qualified=qualificationMap(category,sourceMatches);
-    return String(value||"").replace(/\b([CD][1-4])\b/g,placeholder=>qualified.get(placeholder)||placeholder);
+    return String(value||"").replace(/\b([A-Z][A-Z0-9_-]*\d+)\b/g,placeholder=>{
+      if(qualified.has(placeholder))return qualified.get(placeholder);
+      const parts=placeholder.match(/^(.+?)(\d+)$/),groups=groupsCatalog.filter(group=>group.categoryCode===category),index=parts&&groups.findIndex(group=>group.code===parts[1]);
+      return index>=0?qualified.get(`${String.fromCharCode(67+index)}${parts[2]}`)||placeholder:placeholder;
+    });
   }
 
   function stageParticipant(gameId,side,category,sourceMatches=matches) {
@@ -226,7 +233,10 @@
 
   function resolvedMatchup(match,sourceMatches=matches) {
     const flow=finalFlows[match.category]?.[match.gameId];
-    if(flow){const [side,first,second]=flow,a=stageParticipant(first,side,match.category,sourceMatches),b=stageParticipant(second,side,match.category,sourceMatches);if(a&&b)return `${a} - ${b}`;}
+    if(flow){
+      const resolve=([kind,ref])=>(kind==="winner"||kind==="loser")?stageParticipant(ref,kind,match.category,sourceMatches):resolveQualificationText(ref,match.category,sourceMatches);
+      const a=resolve(flow.home),b=resolve(flow.away);if(a&&b)return `${a} - ${b}`;
+    }
     return resolveQualificationText(match.matchup,match.category,sourceMatches);
   }
 
@@ -308,7 +318,7 @@
     const flow=finalFlows[match.category]?.[gameId];
     const unresolved=flow&&/^FINALE\b/i.test(matchup);
     const teams=unresolved
-      ? flow.slice(1).map(source=>`${flow[0]==="winner"?"Vincente":"Perdente"} gara ${source}`)
+      ? [flow.home,flow.away].map(([kind,ref])=>kind==="winner"?`Vincente gara ${ref}`:kind==="loser"?`Perdente gara ${ref}`:ref)
       : matchup.split(/\s+-\s+/);
     const score=matchScore(match);
     const isFinal=/^Finale\b/i.test(kind), isChampionship=/1°\s*-\s*2°/.test(kind);
@@ -346,6 +356,11 @@
     if([...$("categoryFilter").options].some(option=>option.value===agendaValue))$("categoryFilter").value=agendaValue;
     ["standingsCategory","finalsCategory"].forEach(id=>{const select=$(id),value=select.value;select.innerHTML=options;if([...select.options].some(option=>option.value===value))select.value=value;});
     document.querySelectorAll('#adminView select[name="categoryCode"]').forEach(select=>{const value=select.value;select.innerHTML=options;if([...select.options].some(option=>option.value===value))select.value=value;});
+    const courtOptions=courtsCatalog.map(item=>`<option value="${esc(item.code)}">${esc(item.name||`Campo ${item.code}`)}</option>`).join("");
+    const filterValue=$("courtFilter").value;$("courtFilter").innerHTML=`<option value="all">Tutti</option>${courtOptions}`;if([...$("courtFilter").options].some(option=>option.value===filterValue))$("courtFilter").value=filterValue;
+    document.querySelectorAll('#adminView select[name="court"]').forEach(select=>{const value=select.value;select.innerHTML=courtOptions;if([...select.options].some(option=>option.value===value))select.value=value;});
+    const staffOptions=(role)=>`<option value="">Da definire</option>${staffCatalog.filter(item=>item[role]).map(item=>`<option value="${esc(item.name)}">${esc(item.name)}</option>`).join("")}`;
+    [["scorekeeper","canScorekeeper"],["referee","canReferee"],["courtManager","canCourtManager"]].forEach(([name,role])=>document.querySelectorAll(`#adminView select[name="${name}"]`).forEach(select=>{const value=select.value;select.innerHTML=staffOptions(role);if([...select.options].some(option=>option.value===value))select.value=value;}));
   }
 
   function setAuth(user){
@@ -376,30 +391,37 @@
   function renderAdmin(){
     if(!currentUser)return;
     populateCategorySelectors();
+    $("settingsForm").elements.matchDurationMinutes.value=settingsCatalog.match_duration_minutes||70;
+    $("courtAdminList").innerHTML=courtsCatalog.map(item=>adminRow(`<strong>${esc(item.name)}</strong> · codice ${esc(item.code)}`,"court",item.code)).join("");
     $("categoryAdminList").innerHTML=categoriesCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)}`,"category",item.code)).join("");
     $("groupAdminList").innerHTML=groupsCatalog.map(item=>adminRow(`<strong>${esc(item.categoryCode)} ${esc(item.code)}</strong> · ${esc(item.name)}`,"group",`${item.categoryCode}|${item.code}`)).join("");
     $("teamAdminList").innerHTML=teamsCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.categoryCode)} ${esc(item.groupCode)}`,"team",item.code)).join("");
+    $("staffAdminList").innerHTML=staffCatalog.map(item=>{const roles=[item.canReferee&&"arbitro",item.canScorekeeper&&"refertista",item.canCourtManager&&"responsabile"].filter(Boolean).join(", ");return adminRow(`<strong>${esc(item.name)}</strong> · ${esc(roles)}`,"staff",item.id);}).join("");
     $("matchAdminList").innerHTML=matches.map(item=>adminRow(`<strong>${esc(item.gameId)}</strong> · ${esc(item.date)} ${esc(item.time)} · ${esc(item.category)} · ${esc(expandMatchup(item.matchup))}`,"match",item.gameId)).join("");
+    $("finalLinkAdminList").innerHTML=finalLinksCatalog.map(item=>adminRow(`<strong>Gara ${esc(item.targetGameId)}</strong> · ${esc(item.sectionTitle)} · ${esc(item.homeKind)} ${esc(item.homeRef)} / ${esc(item.awayKind)} ${esc(item.awayRef)}`,"finalLink",item.targetGameId)).join("");
   }
 
   function entityData(entity,key){
     if(entity==="category")return categoriesCatalog.find(item=>item.code===key);
     if(entity==="group"){const [categoryCode,code]=key.split("|");return groupsCatalog.find(item=>item.categoryCode===categoryCode&&item.code===code);}
     if(entity==="team")return teamsCatalog.find(item=>item.code===key);
+    if(entity==="court")return courtsCatalog.find(item=>item.code===key);
+    if(entity==="staff")return staffCatalog.find(item=>String(item.id)===String(key));
+    if(entity==="finalLink")return finalLinksCatalog.find(item=>item.targetGameId===key);
     if(entity==="match"){const item=matches.find(match=>match.gameId===key);if(!item)return null;const parts=item.matchup.split(/\s+-\s+/);return {gameId:item.gameId,categoryCode:item.category,groupCode:item.groupCode||"",phase:item.phase||"girone",date:item.date,time:item.time,court:item.court,homeRef:parts[0]||item.matchup,awayRef:parts[1]||"",scorekeeper:item.scorekeeper,referee:item.referee,courtManager:item.courtManager||""};}
     return null;
   }
 
   function formForEntity(entity){return $(`${entity}Form`);}
-  function fillAdminForm(entity,key){const data=entityData(entity,key),form=formForEntity(entity);if(!data||!form)return;Object.entries(data).forEach(([name,value])=>{if(form.elements[name])form.elements[name].value=value??"";});form.scrollIntoView({behavior:"smooth",block:"center"});}
+  function fillAdminForm(entity,key){const data=entityData(entity,key),form=formForEntity(entity);if(!data||!form)return;Object.entries(data).forEach(([name,value])=>{if(form.elements[name]){if(form.elements[name].type==="checkbox")form.elements[name].checked=Boolean(value);else form.elements[name].value=value??"";}});form.scrollIntoView({behavior:"smooth",block:"center"});}
 
   async function saveAdminEntity(entity,form){
-    const data=Object.fromEntries(new FormData(form).entries());await apiPost("/api/admin/catalog",{entity,action:"save",data});await sync();renderAdmin();form.reset();
+    const data=Object.fromEntries(new FormData(form).entries());await apiPost("/api/admin/catalog",{entity,action:"save",data});form.reset();await sync();renderAdmin();
   }
 
   async function deleteAdminEntity(entity,key){
     if(!confirm("Eliminare questo elemento dall’ambiente di test?"))return;
-    const data=entity==="group"?{categoryCode:key.split("|")[0],code:key.split("|")[1]}:entity==="match"?{gameId:key}:{code:key};
+    const data=entity==="group"?{categoryCode:key.split("|")[0],code:key.split("|")[1]}:entity==="match"?{gameId:key}:entity==="finalLink"?{targetGameId:key}:entity==="staff"?{id:key}:{code:key};
     await apiPost("/api/admin/catalog",{entity,action:"delete",data});await sync();renderAdmin();
   }
 
@@ -474,7 +496,7 @@
   $("loginButton").addEventListener("click",async()=>{if(currentUser){await apiPost("/api/auth/logout",{});setAuth(null);}else{$("loginError").textContent="";$("loginDialog").showModal();}});
   $("loginForm").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());try{const payload=await apiPost("/api/auth/login",data);$("loginDialog").close();form.reset();setAuth(payload.user);}catch(error){$("loginError").textContent=error.message;}});
   $("resultForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());try{await apiPost("/api/results",{gameId:data.gameId,category:data.category,result:data.result,sets:[data.set1,data.set2,data.set3]});$("resultDialog").close();await sync();}catch(error){$("resultError").textContent=error.message;}});
-  [["categoryForm","category"],["groupForm","group"],["teamForm","team"],["matchForm","match"]].forEach(([id,entity])=>$(id).addEventListener("submit",async event=>{event.preventDefault();try{await saveAdminEntity(entity,event.currentTarget);}catch(error){alert(error.message);}}));
+  [["settingsForm","settings"],["courtForm","court"],["categoryForm","category"],["groupForm","group"],["teamForm","team"],["staffForm","staff"],["matchForm","match"],["finalLinkForm","finalLink"]].forEach(([id,entity])=>$(id).addEventListener("submit",async event=>{event.preventDefault();try{await saveAdminEntity(entity,event.currentTarget);}catch(error){alert(error.message);}}));
   populateTeams();restoreSelections();renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();loadSession();sync();setInterval(sync,60000);
   if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 
