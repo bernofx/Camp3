@@ -13,14 +13,15 @@ const intersect=(a:Set<string>,b:Set<string>)=>[...a].some(value=>b.has(value));
 const participants=(match:Match)=>new Set([match.homeRef,match.awayRef]
   .filter(value=>/^\d+$|^[A-Z][A-Z0-9_-]*\d+$/.test(value))
   .map(value=>/^\d+$/.test(value)?value:`${match.category}:${value}`));
+const assignedStaff=(name:string)=>Boolean(name)&&!/^DA\s+DEFIN/i.test(name.trim());
 const staffKey=(name:string,match:Match)=>/^[A-Z][A-Z0-9_-]*\d+$/.test(name)?`${match.category}:${name}`:name;
 
 function checks(matches:Match[],duration:number,links:Link[],courts:Set<string>){
   const issues:{level:string;type:string;message:string}[]=[];
   for(const match of matches){
     if(!courts.has(match.court))issues.push({level:"ERRORE",type:"Campo",message:`Gara ${match.gameId}: campo ${match.court} non configurato.`});
-    if(!match.scorekeeper)issues.push({level:"AVVISO",type:"Staff",message:`Gara ${match.gameId}: refertista non assegnato.`});
-    if(!match.referee)issues.push({level:"AVVISO",type:"Staff",message:`Gara ${match.gameId}: arbitro non assegnato.`});
+    if(!assignedStaff(match.scorekeeper))issues.push({level:"AVVISO",type:"Staff",message:`Gara ${match.gameId}: refertista non assegnato.`});
+    if(!assignedStaff(match.referee))issues.push({level:"AVVISO",type:"Staff",message:`Gara ${match.gameId}: arbitro non assegnato.`});
     const score=match.result.match(/^(\d+)\s*[-–]\s*(\d+)$/),sets=[match.set1,match.set2,match.set3].filter(Boolean);
     if(score&&sets.length&&Number(score[1])+Number(score[2])!==sets.length)issues.push({level:"ERRORE",type:"Risultato",message:`Gara ${match.gameId}: risultato ${match.result} non coerente con ${sets.length} parziali.`});
   }
@@ -28,7 +29,7 @@ function checks(matches:Match[],duration:number,links:Link[],courts:Set<string>)
     const a=matches[i],b=matches[j];if(a.date!==b.date||start(a)>=start(b)+duration||start(b)>=start(a)+duration)continue;
     if(a.court===b.court)issues.push({level:"ERRORE",type:"Campo",message:`Gare ${a.gameId} e ${b.gameId}: sovrapposizione sul campo ${a.court}.`});
     if(intersect(participants(a),participants(b)))issues.push({level:"ERRORE",type:"Squadra",message:`Gare ${a.gameId} e ${b.gameId}: stessa squadra o posizione di classifica nella stessa fascia.`});
-    const peopleA=[a.scorekeeper,a.referee,a.courtManager].filter(Boolean),peopleB=[b.scorekeeper,b.referee,b.courtManager].filter(Boolean),busy=peopleA.find(name=>peopleB.some(other=>staffKey(other,b)===staffKey(name,a)));
+    const peopleA=[a.scorekeeper,a.referee,a.courtManager].filter(assignedStaff),peopleB=[b.scorekeeper,b.referee,b.courtManager].filter(assignedStaff),busy=peopleA.find(name=>peopleB.some(other=>staffKey(other,b)===staffKey(name,a)));
     if(busy)issues.push({level:"ERRORE",type:"Staff",message:`${busy}: assegnazione contemporanea alle gare ${a.gameId} e ${b.gameId}.`});
   }
   const byId=new Map(matches.map(match=>[match.gameId,match]));
