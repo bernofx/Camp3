@@ -234,8 +234,11 @@
   function resolvedMatchup(match,sourceMatches=matches) {
     const flow=finalFlows[match.category]?.[match.gameId];
     if(flow){
-      const resolve=([kind,ref])=>(kind==="winner"||kind==="loser")?stageParticipant(ref,kind,match.category,sourceMatches):resolveQualificationText(ref,match.category,sourceMatches);
-      const a=resolve(flow.home),b=resolve(flow.away);if(a&&b)return `${a} - ${b}`;
+      const resolve=([kind,ref])=>{
+        if(kind==="winner"||kind==="loser")return stageParticipant(ref,kind,match.category,sourceMatches)||`${kind==="winner"?"Vincente":"Perdente"} gara ${ref}`;
+        return resolveQualificationText(ref,match.category,sourceMatches);
+      };
+      return `${resolve(flow.home)} - ${resolve(flow.away)}`;
     }
     return resolveQualificationText(match.matchup,match.category,sourceMatches);
   }
