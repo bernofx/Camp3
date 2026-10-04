@@ -10,7 +10,9 @@ const prettyDate=(value:string)=>{const [y,m,d]=value.split("-");return `${d}.${
 const matchup=(match:Match)=>match.awayRef?`${match.homeRef} - ${match.awayRef}`:match.homeRef;
 const start=(match:Match)=>{const [h,m]=match.time.split(":").map(Number);return h*60+m;};
 const intersect=(a:Set<string>,b:Set<string>)=>[...a].some(value=>b.has(value));
-const participants=(match:Match)=>new Set([match.homeRef,match.awayRef].filter(value=>/^\d+$|^[A-Z][A-Z0-9_-]*\d+$/.test(value)));
+const participants=(match:Match)=>new Set([match.homeRef,match.awayRef]
+  .filter(value=>/^\d+$|^[A-Z][A-Z0-9_-]*\d+$/.test(value))
+  .map(value=>/^\d+$/.test(value)?value:`${match.category}:${value}`));
 
 function checks(matches:Match[],duration:number,links:Link[],courts:Set<string>){
   const issues:{level:string;type:string;message:string}[]=[];
