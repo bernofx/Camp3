@@ -12,6 +12,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS categories (code TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#dff4ea', sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
+  `CREATE TABLE IF NOT EXISTS category_settings (category_code TEXT PRIMARY KEY, admission_method TEXT NOT NULL DEFAULT 'top2_each')`,
   `CREATE TABLE IF NOT EXISTS tournament_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, category_code TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, UNIQUE(category_code, code))`,
   `CREATE TABLE IF NOT EXISTS teams (code TEXT PRIMARY KEY, name TEXT NOT NULL, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS courts (code TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
@@ -68,6 +69,7 @@ export async function ensureDatabase() {
     }
     infrastructure.push(...[...staffRoles.entries()].map(([name,roles])=>db.prepare("INSERT OR IGNORE INTO staff(name,can_referee,can_scorekeeper,can_court_manager,active) VALUES(?,?,?,?,1)").bind(name,roles.referee,roles.scorekeeper,0)));
     await db.batch(infrastructure);
+    await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
     const count = await db.prepare("SELECT COUNT(*) AS count FROM categories").first<{count:number}>();
     if (Number(count?.count || 0) > 0) return;
     const seedStatements = [];
@@ -86,6 +88,7 @@ export async function ensureDatabase() {
       seedStatements.push(db.prepare(`INSERT OR IGNORE INTO matches(game_id,category_code,group_code,phase,match_date,match_time,court,home_ref,away_ref,scorekeeper,referee,court_manager,result,set_1,set_2,set_3,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(match.gameId,match.category,"",phase,match.date,match.time,match.court,home,away,match.scorekeeper,match.referee,"",match.result,match.sets[0]||"",match.sets[1]||"",match.sets[2]||"",match.result?"completed":"scheduled"));
     }
     await db.batch(seedStatements);
+    await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
   })();
   return ready;
 }

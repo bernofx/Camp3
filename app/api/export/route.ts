@@ -6,7 +6,7 @@ type Match = {gameId:string;category:string;groupCode:string;phase:string;date:s
 type Link = {targetGameId:string;categoryCode:string;sectionTitle:string;sectionOrder:number;targetOrder:number;homeKind:string;homeRef:string;awayKind:string;awayRef:string};
 const c=(value:string|number,style=0)=>({value,style});
 const styleByCategory:Record<string,number>={U13:4,U14:5,U15:6,U17:7};
-const prettyDate=(value:string)=>{const [y,m,d]=value.split("-");return `${d}.${m}.${y}`;};
+const prettyDate=(value:string)=>{if(!value)return "";const [y,m,d]=value.split("-");return `${d}.${m}.${y}`;};
 const matchup=(match:Match)=>match.awayRef?`${match.homeRef} - ${match.awayRef}`:match.homeRef;
 const start=(match:Match)=>{const [h,m]=match.time.split(":").map(Number);return h*60+m;};
 const intersect=(a:Set<string>,b:Set<string>)=>[...a].some(value=>b.has(value));
@@ -19,6 +19,7 @@ const staffKey=(name:string,match:Match)=>/^[A-Z][A-Z0-9_-]*\d+$/.test(name)?`${
 function checks(matches:Match[],duration:number,links:Link[],courts:Set<string>){
   const issues:{level:string;type:string;message:string}[]=[];
   for(const match of matches){
+    if(!match.date||!match.time||!match.court||match.status==="draft"){issues.push({level:"ERRORE",type:"Allocazione",message:`Gara ${match.gameId}: assegna campo, data e ora.`});continue;}
     if(!courts.has(match.court))issues.push({level:"ERRORE",type:"Campo",message:`Gara ${match.gameId}: campo ${match.court} non configurato.`});
     if(!assignedStaff(match.scorekeeper))issues.push({level:"AVVISO",type:"Staff",message:`Gara ${match.gameId}: refertista non assegnato.`});
     if(!assignedStaff(match.referee))issues.push({level:"AVVISO",type:"Staff",message:`Gara ${match.gameId}: arbitro non assegnato.`});
@@ -26,14 +27,14 @@ function checks(matches:Match[],duration:number,links:Link[],courts:Set<string>)
     if(score&&sets.length&&Number(score[1])+Number(score[2])!==sets.length)issues.push({level:"ERRORE",type:"Risultato",message:`Gara ${match.gameId}: risultato ${match.result} non coerente con ${sets.length} parziali.`});
   }
   for(let i=0;i<matches.length;i++)for(let j=i+1;j<matches.length;j++){
-    const a=matches[i],b=matches[j];if(a.date!==b.date||start(a)>=start(b)+duration||start(b)>=start(a)+duration)continue;
+    const a=matches[i],b=matches[j];if(!a.date||!a.time||!a.court||!b.date||!b.time||!b.court||a.date!==b.date||start(a)>=start(b)+duration||start(b)>=start(a)+duration)continue;
     if(a.court===b.court)issues.push({level:"ERRORE",type:"Campo",message:`Gare ${a.gameId} e ${b.gameId}: sovrapposizione sul campo ${a.court}.`});
     if(intersect(participants(a),participants(b)))issues.push({level:"ERRORE",type:"Squadra",message:`Gare ${a.gameId} e ${b.gameId}: stessa squadra o posizione di classifica nella stessa fascia.`});
     const peopleA=[a.scorekeeper,a.referee,a.courtManager].filter(assignedStaff),peopleB=[b.scorekeeper,b.referee,b.courtManager].filter(assignedStaff),busy=peopleA.find(name=>peopleB.some(other=>staffKey(other,b)===staffKey(name,a)));
     if(busy)issues.push({level:"ERRORE",type:"Staff",message:`${busy}: assegnazione contemporanea alle gare ${a.gameId} e ${b.gameId}.`});
   }
   const byId=new Map(matches.map(match=>[match.gameId,match]));
-  for(const link of links){const target=byId.get(link.targetGameId);for(const [kind,ref] of [[link.homeKind,link.homeRef],[link.awayKind,link.awayRef]])if(kind==="winner"||kind==="loser"){const source=byId.get(ref);if(!source)issues.push({level:"ERRORE",type:"Finali",message:`Gara ${link.targetGameId}: gara sorgente ${ref} inesistente.`});else if(target&&(source.date>target.date||source.date===target.date&&start(source)>=start(target)))issues.push({level:"ERRORE",type:"Finali",message:`Gara ${link.targetGameId}: la sorgente ${ref} non la precede.`});}}
+  for(const link of links){const target=byId.get(link.targetGameId);for(const [kind,ref] of [[link.homeKind,link.homeRef],[link.awayKind,link.awayRef]])if(kind==="winner"||kind==="loser"){const source=byId.get(ref);if(!source)issues.push({level:"ERRORE",type:"Finali",message:`Gara ${link.targetGameId}: gara sorgente ${ref} inesistente.`});else if(target&&source.date&&source.time&&target.date&&target.time&&(source.date>target.date||source.date===target.date&&start(source)>=start(target)))issues.push({level:"ERRORE",type:"Finali",message:`Gara ${link.targetGameId}: la sorgente ${ref} non la precede.`});}}
   return issues;
 }
 
@@ -51,7 +52,7 @@ export async function GET(request:Request){
   const categories=categoryRows.results,groups=groupRows.results,teams=teamRows.results,courts=courtRows.results,matches=matchRows.results,links=linkRows.results,settings=Object.fromEntries(settingRows.results.map(item=>[item.key,item.value])),duration=Number(settings.match_duration_minutes||70),sheets:any[]=[];
 
   const programRows:any[][]=[[c("PROGRAMMA GARE VOLLEYSTARS 2026",1)], [c("DATA",2),c("ORARIO",2),...courts.map(court=>c(court.name.toUpperCase(),3))]];
-  const slots=[...new Set<string>(matches.map(match=>`${match.date}|${match.time}`))].sort();
+  const slots=[...new Set<string>(matches.filter(match=>match.date&&match.time&&match.court).map(match=>`${match.date}|${match.time}`))].sort();
   for(const slot of slots){const [date,time]=slot.split("|");programRows.push([c(prettyDate(date),2),c(time,2),...courts.map(court=>{const match=matches.find(item=>item.date===date&&item.time===time&&item.court===court.code);if(!match)return c("",8);const details=[`${matchup(match)} / ${match.referee||"ARBITRO DA DEFINIRE"}`,`Referto: ${match.scorekeeper||"da definire"}`,match.courtManager?`Responsabile: ${match.courtManager}`:""].filter(Boolean).join("\n");return c(details,styleByCategory[match.category]||2);})]);}
   programRows.push([], [c("ELENCO SQUADRE",1)]);
   for(const category of categories){programRows.push([c(`${category.code} - ${category.name}`,styleByCategory[category.code]||2)]);for(const group of groups.filter(item=>item.categoryCode===category.code)){programRows.push([c(`Girone ${group.code}`,2),...teams.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).map(team=>c(`${team.code} = ${team.name}`,styleByCategory[category.code]||2))]);}}

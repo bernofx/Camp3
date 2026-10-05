@@ -2,6 +2,7 @@
   const config = window.VOLLEYSTARS_CONFIG;
   const staticData = window.VOLLEYSTARS_STATIC;
   let matches = staticData.matches.map(x => ({...x}));
+  let matchesCatalog = matches.map(x => ({...x,status:x.status||"scheduled"}));
   let notices = [];
   let sheetStandings = {};
   let currentUser = null;
@@ -148,9 +149,10 @@
       qualificationGroups[category.code]={};
       groups.forEach((group,index)=>{const codes=teamsCatalog.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).map(team=>team.code),legacy=String.fromCharCode(67+index);qualificationGroups[category.code][legacy]=codes;});
     });
-    finalFlows={};finalBrackets={};
+    finalFlows={};finalBrackets={};const phaseByGame=new Map(payload.matches.map(item=>[item.gameId,item.phase]));
     finalLinksCatalog.forEach(link=>{
       (finalFlows[link.categoryCode]??={})[link.targetGameId]={home:[link.homeKind,link.homeRef],away:[link.awayKind,link.awayRef]};
+      if(phaseByGame.get(link.targetGameId)!=="finale")return;
       const sections=finalBrackets[link.categoryCode]??=[];let section=sections.find(item=>item.title===link.sectionTitle);
       if(!section){section={title:link.sectionTitle,sectionOrder:Number(link.sectionOrder)||0,semis:[],finals:[]};sections.push(section);finalBrackets[link.categoryCode]=sections;}
       [[link.homeKind,link.homeRef],[link.awayKind,link.awayRef]].forEach(([kind,ref])=>{if((kind==="winner"||kind==="loser")&&!section.semis.includes(ref))section.semis.push(ref);});
@@ -158,7 +160,8 @@
     });
     Object.values(finalBrackets).forEach(sections=>{sections.sort((a,b)=>a.sectionOrder-b.sectionOrder);sections.forEach(section=>{section.finals.sort((a,b)=>a.order-b.order);section.finals=section.finals.map(item=>item.id);});});
     sheetStandings={};
-    return payload.matches.map(match=>({category:match.category,date:match.date,time:match.time,gameId:match.gameId,court:match.court,matchup:match.awayRef?`${match.homeRef} - ${match.awayRef}`:match.homeRef,scorekeeper:match.scorekeeper,referee:match.referee,courtManager:match.courtManager,result:match.result,sets:[match.set1||"",match.set2||"",match.set3||""],phase:match.phase,status:match.status,groupCode:match.groupCode}));
+    matchesCatalog=payload.matches.map(match=>({category:match.category,date:match.date,time:match.time,gameId:match.gameId,court:match.court,matchup:match.awayRef?`${match.homeRef} - ${match.awayRef}`:match.homeRef,scorekeeper:match.scorekeeper,referee:match.referee,courtManager:match.courtManager,result:match.result,sets:[match.set1||"",match.set2||"",match.set3||""],phase:match.phase,status:match.status,groupCode:match.groupCode}));
+    return matchesCatalog.filter(match=>match.status!=="draft"&&match.date&&match.time&&match.court);
   }
 
   async function fetchNotices() {
@@ -213,29 +216,40 @@
     return map;
   }
 
+  function bestSecond(category,sourceMatches=matches){
+    const candidates=[];
+    Object.entries(qualificationGroups[category]||{}).forEach(([letter,codes])=>{
+      const ranking=rankGroup(codes,sourceMatches,category,letter);if(!ranking||ranking.length<2)return;
+      const stats=groupStandings(codes,sourceMatches,category,letter),item=stats.find(row=>row.code===ranking[1]);if(item)candidates.push(item);
+    });
+    candidates.sort((a,b)=>b.points-a.points||b.wins-a.wins||(b.setsFor-b.setsAgainst)-(a.setsFor-a.setsAgainst)||b.setsFor-a.setsFor||pointRatio(b)-pointRatio(a)||a.code.localeCompare(b.code));
+    return candidates[0]?.code||null;
+  }
+
   function resolveQualificationText(value,category,sourceMatches=matches) {
     const qualified=qualificationMap(category,sourceMatches);
-    return String(value||"").replace(/\b([A-Z][A-Z0-9_-]*\d+)\b/g,placeholder=>{
+    return String(value||"").replace(/\bBEST2\b/g,bestSecond(category,sourceMatches)||"Migliore seconda").replace(/\b([A-Z][A-Z0-9_-]*\d+)\b/g,placeholder=>{
       if(qualified.has(placeholder))return qualified.get(placeholder);
       const parts=placeholder.match(/^(.+?)(\d+)$/),groups=groupsCatalog.filter(group=>group.categoryCode===category),index=parts&&groups.findIndex(group=>group.code===parts[1]);
       return index>=0?qualified.get(`${String.fromCharCode(67+index)}${parts[2]}`)||placeholder:placeholder;
     });
   }
 
-  function stageParticipant(gameId,side,category,sourceMatches=matches) {
+  function stageParticipant(gameId,side,category,sourceMatches=matches,seen=new Set()) {
+    if(seen.has(gameId))return null;seen=new Set(seen);seen.add(gameId);
     const source=sourceMatches.find(match=>match.gameId===gameId), score=source&&matchScore(source);
     if(!source||!score||score[0]===score[1])return null;
-    const codes=teamCodes(resolveQualificationText(source.matchup,category,sourceMatches));
+    const codes=teamCodes(resolvedMatchup(source,sourceMatches,seen));
     if(codes.length!==2)return null;
     const winner=score[0]>score[1]?codes[0]:codes[1], loser=winner===codes[0]?codes[1]:codes[0];
     return side==="winner"?winner:loser;
   }
 
-  function resolvedMatchup(match,sourceMatches=matches) {
+  function resolvedMatchup(match,sourceMatches=matches,seen=new Set()) {
     const flow=finalFlows[match.category]?.[match.gameId];
     if(flow){
       const resolve=([kind,ref])=>{
-        if(kind==="winner"||kind==="loser")return stageParticipant(ref,kind,match.category,sourceMatches)||`${kind==="winner"?"Vincente":"Perdente"} gara ${ref}`;
+        if(kind==="winner"||kind==="loser")return stageParticipant(ref,kind,match.category,sourceMatches,seen)||`${kind==="winner"?"Vincente":"Perdente"} gara ${ref}`;
         return resolveQualificationText(ref,match.category,sourceMatches);
       };
       return `${resolve(flow.home)} - ${resolve(flow.away)}`;
@@ -267,7 +281,7 @@
   function resultText(match) { return String(match.result || "").trim(); }
 
   function expandMatchup(value) {
-    return value.replace(/\b(1\d{2})\b/g, code => teamNames[code] ? `${teamNames[code]} (${code})` : code);
+    return value.replace(/\b(\d{3})\b/g, code => teamNames[code] ? `${teamNames[code]} (${code})` : code);
   }
 
   function renderAgenda() {
@@ -281,7 +295,7 @@
     $("upcomingList").innerHTML=visible.map(m=>{const divider=m.date!==previous?`<div class="date-divider">${esc(dateLabel(m.date))}</div>`:"";previous=m.date;return divider+card(m);}).join("") || '<div class="empty">Nessun appuntamento disponibile.</div>';
   }
 
-  function teamCodes(matchup){return String(matchup).match(/\b1\d{2}\b/g)||[];}
+  function teamCodes(matchup){return String(matchup).match(/\b\d{3}\b/g)||[];}
   function resultOutcome(match, code){
     const codes=teamCodes(resolvedMatchup(match)); if(codes.length!==2) return null;
     const parts=String(match.result).match(/(\d+)\s*[-–]\s*(\d+)/);if(!parts)return null;
@@ -341,14 +355,16 @@
   function renderFinals(){
     const category=$("finalsCategory").value;
     const sections=finalBrackets[category]||[];
-    $("finalsBracket").innerHTML=sections.map(section=>{
+    const bracket=sections.map(section=>{
       const semis=section.semis.map(id=>bracketMatch(id,"Semifinale")).join("");
       const finals=section.finals.map(id=>bracketMatch(id,finalLabel(matches.find(match=>match.gameId===id)))).join("");
       const titleFinal=section.finals.find(id=>/FINALE\s+1°\s*-\s*2°/i.test(matches.find(match=>match.gameId===id)?.matchup||""));
       const championCode=titleFinal&&stageParticipant(titleFinal,"winner",category);
       const champion=championCode?`<div class="champion-banner"><span aria-hidden="true">🏆</span><div><small>Campione ${esc(category)}</small><strong>${esc(teamNames[championCode]||championCode)}</strong></div></div>`:"";
       return `<section class="bracket-section"><h3>${esc(section.title)}</h3>${champion}<div class="bracket-headings"><span>Semifinali</span><span>Finali</span></div><div class="bracket-grid"><div class="bracket-round">${semis}</div><div class="bracket-lines" aria-hidden="true"><i></i></div><div class="bracket-round">${finals}</div></div></section>`;
-    }).join("")||'<div class="empty">Fase finale non prevista.</div>';
+    }).join("");
+    const finalRound=matches.filter(item=>item.category===category&&item.phase==="finale-girone");
+    $("finalsBracket").innerHTML=bracket||(finalRound.length?`<section class="bracket-section"><h3>Girone finale tra le vincitrici</h3><div class="card-list">${finalRound.map(card).join("")}</div></section>`:'<div class="empty">Fase finale non prevista.</div>');
   }
 
   function populateCategorySelectors(){
@@ -364,6 +380,46 @@
     document.querySelectorAll('#adminView select[name="court"]').forEach(select=>{const value=select.value;select.innerHTML=courtOptions;if([...select.options].some(option=>option.value===value))select.value=value;});
     const staffOptions=(role)=>`<option value="">Da definire</option>${staffCatalog.filter(item=>item[role]).map(item=>`<option value="${esc(item.name)}">${esc(item.name)}</option>`).join("")}`;
     [["scorekeeper","canScorekeeper"],["referee","canReferee"],["courtManager","canCourtManager"]].forEach(([name,role])=>document.querySelectorAll(`#adminView select[name="${name}"]`).forEach(select=>{const value=select.value;select.innerHTML=staffOptions(role);if([...select.options].some(option=>option.value===value))select.value=value;}));
+    populateGroupSelector();populateAllocationSelector();updateAdmissionAdvice();
+  }
+
+  function populateGroupSelector(){
+    const form=$("teamForm"),category=form?.elements.categoryCode.value,select=form?.elements.groupCode;if(!select)return;const value=select.value;
+    select.innerHTML=groupsCatalog.filter(item=>item.categoryCode===category).map(item=>`<option value="${esc(item.code)}">${esc(item.name)} (${esc(item.code)})</option>`).join("");
+    if([...select.options].some(option=>option.value===value))select.value=value;
+  }
+
+  function populateAllocationSelector(){
+    const select=$("allocationForm")?.elements.gameId;if(!select)return;const value=select.value;
+    select.innerHTML=matchesCatalog.slice().sort((a,b)=>(a.date||"9999").localeCompare(b.date||"9999")||(a.time||"99:99").localeCompare(b.time||"99:99")||a.gameId.localeCompare(b.gameId)).map(item=>`<option value="${esc(item.gameId)}">Gara ${esc(item.gameId)} · ${esc(item.category)} · ${esc(expandMatchup(item.matchup))}${item.status==="draft"?" · BOZZA":""}</option>`).join("");
+    if([...select.options].some(option=>option.value===value))select.value=value;
+  }
+
+  function updateAdmissionAdvice(){
+    const form=$("categoryForm"),category=form?.elements.code.value.toUpperCase()||form?.elements.code.value,method=form?.elements.admissionMethod.value,box=$("admissionAdvice");if(!box)return;
+    const count=groupsCatalog.filter(item=>item.categoryCode===category).length;
+    if(count>1&&count%2===1&&method==="top2_each")box.textContent=`${count} gironi: le prime 2 produrrebbero ${count*2} qualificate. Puoi scegliere un girone finale tra le vincitrici; con 3 gironi puoi anche ammettere le 3 vincitrici e la migliore seconda. Per tabelloni più grandi serve definire teste di serie e turni preliminari.`;
+    else if(method==="winners_plus_best_second")box.textContent="Per 3 gironi della stessa dimensione: accedono le 3 vincitrici e la migliore seconda, confrontata con punti, set e QP.";
+    else if(method==="winners_round_robin")box.textContent="Per 3 gironi: le 3 vincitrici disputano un girone finale di tre gare.";
+    else box.textContent="Modalità standard: accedono le prime 2 di ciascun girone.";
+  }
+
+  const italianDate=value=>{if(!value)return "";const [y,m,d]=value.split("-");return y&&m&&d?`${d}/${m}/${y}`:value;};
+
+  function configurationIssues(){
+    const issues=[],unallocated=matchesCatalog.filter(item=>!item.date||!item.time||!item.court||item.status==="draft");
+    if(unallocated.length)issues.push(`${unallocated.length} gare ancora da allocare.`);
+    categoriesCatalog.forEach(category=>{
+      const groups=groupsCatalog.filter(group=>group.categoryCode===category.code);if(!groups.length)issues.push(`${category.code}: nessun girone.`);
+      groups.forEach(group=>{const count=teamsCatalog.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).length;if(count<2)issues.push(`${category.code} ${group.name}: servono almeno 2 squadre.`);});
+      if(groups.length>1&&groups.length%2===1&&category.admissionMethod==="top2_each")issues.push(`${category.code}: scegli una modalità di ammissione compatibile con ${groups.length} gironi.`);
+      const expected=groups.reduce((sum,group)=>{const n=teamsCatalog.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).length;return sum+n*(n-1)/2;},0),actual=matchesCatalog.filter(item=>item.category===category.code&&item.phase==="girone").length;
+      if(actual<expected)issues.push(`${category.code}: mancano ${expected-actual} gare di girone da generare.`);
+      if(expected&&actual>=expected&&!matchesCatalog.some(item=>item.category===category.code&&item.phase!=="girone"))issues.push(`${category.code}: fase finale da generare.`);
+    });
+    const duration=Number(settingsCatalog.match_duration_minutes||70),allocated=matchesCatalog.filter(item=>item.date&&item.time&&item.court&&item.status!=="draft"),minutes=item=>{const [h,m]=item.time.split(":").map(Number);return h*60+m;};
+    for(let i=0;i<allocated.length;i++)for(let j=i+1;j<allocated.length;j++){const a=allocated[i],b=allocated[j];if(a.date!==b.date||minutes(a)>=minutes(b)+duration||minutes(b)>=minutes(a)+duration)continue;if(a.court===b.court)issues.push(`Gare ${a.gameId} e ${b.gameId}: stesso campo nella stessa fascia.`);const first=new Set(teamCodes(a.matchup)),second=new Set(teamCodes(b.matchup));if([...first].some(code=>second.has(code)))issues.push(`Gare ${a.gameId} e ${b.gameId}: stessa squadra nella stessa fascia.`);const people=[a.scorekeeper,a.referee,a.courtManager].filter(Boolean),busy=[b.scorekeeper,b.referee,b.courtManager].filter(Boolean).find(name=>people.includes(name));if(busy)issues.push(`${busy}: assegnazione contemporanea nelle gare ${a.gameId} e ${b.gameId}.`);}
+    return [...new Set(issues)];
   }
 
   function setAuth(user){
@@ -396,12 +452,13 @@
     populateCategorySelectors();
     $("settingsForm").elements.matchDurationMinutes.value=settingsCatalog.match_duration_minutes||70;
     $("courtAdminList").innerHTML=courtsCatalog.map(item=>adminRow(`<strong>${esc(item.name)}</strong> · codice ${esc(item.code)}`,"court",item.code)).join("");
-    $("categoryAdminList").innerHTML=categoriesCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)}`,"category",item.code)).join("");
+    $("categoryAdminList").innerHTML=categoriesCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.admissionMethod==="top2_each"?"prime 2 per girone":item.admissionMethod==="winners_plus_best_second"?"vincitrici + migliore seconda":"girone finale vincitrici")}`,"category",item.code)).join("");
     $("groupAdminList").innerHTML=groupsCatalog.map(item=>adminRow(`<strong>${esc(item.categoryCode)} ${esc(item.code)}</strong> · ${esc(item.name)}`,"group",`${item.categoryCode}|${item.code}`)).join("");
     $("teamAdminList").innerHTML=teamsCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.categoryCode)} ${esc(item.groupCode)}`,"team",item.code)).join("");
     $("staffAdminList").innerHTML=staffCatalog.map(item=>{const roles=[item.canReferee&&"arbitro",item.canScorekeeper&&"refertista",item.canCourtManager&&"responsabile"].filter(Boolean).join(", ");return adminRow(`<strong>${esc(item.name)}</strong> · ${esc(roles)}`,"staff",item.id);}).join("");
-    $("matchAdminList").innerHTML=matches.map(item=>adminRow(`<strong>${esc(item.gameId)}</strong> · ${esc(item.date)} ${esc(item.time)} · ${esc(item.category)} · ${esc(expandMatchup(item.matchup))}`,"match",item.gameId)).join("");
-    $("finalLinkAdminList").innerHTML=finalLinksCatalog.map(item=>adminRow(`<strong>Gara ${esc(item.targetGameId)}</strong> · ${esc(item.sectionTitle)} · ${esc(item.homeKind)} ${esc(item.homeRef)} / ${esc(item.awayKind)} ${esc(item.awayRef)}`,"finalLink",item.targetGameId)).join("");
+    $("matchAdminList").innerHTML=matchesCatalog.map(item=>`<div><span><strong>${esc(item.gameId)}</strong> · ${item.date?esc(italianDate(item.date)):"da allocare"} ${esc(item.time||"")} · ${esc(item.category)} · ${esc(expandMatchup(item.matchup))}${item.status==="draft"?'<span class="draft-badge">bozza</span>':""}</span><span class="admin-row-actions"><button type="button" data-admin-edit="allocation" data-admin-key="${esc(item.gameId)}">Alloca</button><button type="button" data-admin-delete="match" data-admin-key="${esc(item.gameId)}">Elimina</button></span></div>`).join("");
+    $("finalLinkAdminList").innerHTML=finalLinksCatalog.map(item=>`<div><span><strong>Gara ${esc(item.targetGameId)}</strong> · ${esc(item.sectionTitle)} · ${esc(item.homeKind)} ${esc(item.homeRef)} / ${esc(item.awayKind)} ${esc(item.awayRef)}</span></div>`).join("");
+    const issues=configurationIssues(),status=$("configurationStatus");status.classList.toggle("complete",!issues.length);status.innerHTML=issues.length?`<strong>Configurazione incompleta</strong><ul>${issues.map(item=>`<li>${esc(item)}</li>`).join("")}</ul>`:"Configurazione completa: tutte le gare sono allocate e i controlli strutturali sono soddisfatti.";
   }
 
   function entityData(entity,key){
@@ -411,15 +468,21 @@
     if(entity==="court")return courtsCatalog.find(item=>item.code===key);
     if(entity==="staff")return staffCatalog.find(item=>String(item.id)===String(key));
     if(entity==="finalLink")return finalLinksCatalog.find(item=>item.targetGameId===key);
-    if(entity==="match"){const item=matches.find(match=>match.gameId===key);if(!item)return null;const parts=item.matchup.split(/\s+-\s+/);return {gameId:item.gameId,categoryCode:item.category,groupCode:item.groupCode||"",phase:item.phase||"girone",date:item.date,time:item.time,court:item.court,homeRef:parts[0]||item.matchup,awayRef:parts[1]||"",scorekeeper:item.scorekeeper,referee:item.referee,courtManager:item.courtManager||""};}
+    if(entity==="allocation"){const item=matchesCatalog.find(match=>match.gameId===key);if(!item)return null;return {gameId:item.gameId,date:italianDate(item.date),time:item.time,court:item.court,scorekeeper:item.scorekeeper,referee:item.referee,courtManager:item.courtManager||""};}
     return null;
   }
 
   function formForEntity(entity){return $(`${entity}Form`);}
-  function fillAdminForm(entity,key){const data=entityData(entity,key),form=formForEntity(entity);if(!data||!form)return;Object.entries(data).forEach(([name,value])=>{if(form.elements[name]){if(form.elements[name].type==="checkbox")form.elements[name].checked=Boolean(value);else form.elements[name].value=value??"";}});form.scrollIntoView({behavior:"smooth",block:"center"});}
+  function fillAdminForm(entity,key){const data=entityData(entity,key),form=formForEntity(entity);if(!data||!form)return;Object.entries(data).forEach(([name,value])=>{if(form.elements[name]){if(form.elements[name].type==="checkbox")form.elements[name].checked=Boolean(value);else form.elements[name].value=value??"";}});if(entity==="team")populateGroupSelector();if(entity==="category")updateAdmissionAdvice();form.scrollIntoView({behavior:"smooth",block:"center"});}
 
   async function saveAdminEntity(entity,form){
     const data=Object.fromEntries(new FormData(form).entries());await apiPost("/api/admin/catalog",{entity,action:"save",data});form.reset();await sync();renderAdmin();
+  }
+
+  async function generateSchedule(scope){
+    const categoryCode=$("generationForm").elements.categoryCode.value,box=$("generationMessage");box.textContent="Generazione in corso…";
+    try{const payload=await apiPost("/api/admin/generate",{scope,categoryCode});box.textContent=payload.message||"Generazione completata.";await sync();renderAdmin();}
+    catch(error){box.textContent=error.message;throw error;}
   }
 
   async function deleteAdminEntity(entity,key){
@@ -491,6 +554,7 @@
     const edit=event.target.closest("[data-edit-game]");if(edit){event.stopPropagation();openResultEditor(edit.dataset.editGame);return;}
     const editAdmin=event.target.closest("[data-admin-edit]");if(editAdmin){fillAdminForm(editAdmin.dataset.adminEdit,editAdmin.dataset.adminKey);return;}
     const deleteAdmin=event.target.closest("[data-admin-delete]");if(deleteAdmin){deleteAdminEntity(deleteAdmin.dataset.adminDelete,deleteAdmin.dataset.adminKey).catch(error=>alert(error.message));return;}
+    const generator=event.target.closest("[data-generate]");if(generator){generateSchedule(generator.dataset.generate).catch(()=>{});return;}
     const closer=event.target.closest("[data-close-dialog]");if(closer){$(closer.dataset.closeDialog).close();return;}
     const card=event.target.closest(".match-card");if(card)toggleMatchCard(card);
   });
@@ -499,7 +563,9 @@
   $("loginButton").addEventListener("click",async()=>{if(currentUser){await apiPost("/api/auth/logout",{});setAuth(null);}else{$("loginError").textContent="";$("loginDialog").showModal();}});
   $("loginForm").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());try{const payload=await apiPost("/api/auth/login",data);$("loginDialog").close();form.reset();setAuth(payload.user);}catch(error){$("loginError").textContent=error.message;}});
   $("resultForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());try{await apiPost("/api/results",{gameId:data.gameId,category:data.category,result:data.result,sets:[data.set1,data.set2,data.set3]});$("resultDialog").close();await sync();}catch(error){$("resultError").textContent=error.message;}});
-  [["settingsForm","settings"],["courtForm","court"],["categoryForm","category"],["groupForm","group"],["teamForm","team"],["staffForm","staff"],["matchForm","match"],["finalLinkForm","finalLink"]].forEach(([id,entity])=>$(id).addEventListener("submit",async event=>{event.preventDefault();try{await saveAdminEntity(entity,event.currentTarget);}catch(error){alert(error.message);}}));
+  [["settingsForm","settings"],["courtForm","court"],["categoryForm","category"],["groupForm","group"],["teamForm","team"],["staffForm","staff"],["allocationForm","allocation"]].forEach(([id,entity])=>$(id).addEventListener("submit",async event=>{event.preventDefault();try{await saveAdminEntity(entity,event.currentTarget);}catch(error){alert(error.message);}}));
+  $("teamForm").elements.categoryCode.addEventListener("change",populateGroupSelector);$("categoryForm").elements.code.addEventListener("input",updateAdmissionAdvice);$("categoryForm").elements.admissionMethod.addEventListener("change",updateAdmissionAdvice);
+  $("allocationForm").elements.gameId.addEventListener("change",event=>fillAdminForm("allocation",event.currentTarget.value));
   populateTeams();restoreSelections();renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();loadSession();sync();setInterval(sync,60000);
   if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 

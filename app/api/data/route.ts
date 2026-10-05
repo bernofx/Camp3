@@ -5,7 +5,7 @@ export async function GET() {
   await ensureDatabase();
   const db = database();
   const [categories,groups,teams,courts,staff,settings,matches,finalLinks] = await Promise.all([
-    db.prepare("SELECT code,name,color,sort_order AS sortOrder FROM categories WHERE active=1 ORDER BY sort_order,code").all(),
+    db.prepare("SELECT c.code,c.name,c.color,c.sort_order AS sortOrder,COALESCE(s.admission_method,'top2_each') AS admissionMethod FROM categories c LEFT JOIN category_settings s ON s.category_code=c.code WHERE c.active=1 ORDER BY c.sort_order,c.code").all(),
     db.prepare("SELECT id,category_code AS categoryCode,code,name,sort_order AS sortOrder FROM tournament_groups ORDER BY category_code,sort_order,code").all(),
     db.prepare("SELECT code,name,category_code AS categoryCode,group_code AS groupCode FROM teams WHERE active=1 ORDER BY category_code,group_code,name").all(),
     db.prepare("SELECT code,name,sort_order AS sortOrder FROM courts WHERE active=1 ORDER BY sort_order,code").all(),

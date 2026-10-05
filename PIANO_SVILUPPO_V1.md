@@ -1,5 +1,17 @@
 # Piano di sviluppo v1
 
+## Generazione e completezza della configurazione
+
+- La modalità di ammissione alla fase finale è una proprietà obbligatoria della categoria. Il valore predefinito è **prime 2 di ogni girone**.
+- Con un solo girone vengono generate la finale tra prima e seconda; con due gironi vengono generate le semifinali incrociate e le finali 1°-2° e 3°-4°.
+- Con tre gironi la modalità standard viene bloccata perché produce sei qualificate senza definire teste di serie e bye. Le alternative previste sono **tre vincitrici + migliore seconda** (solo con gironi della stessa dimensione) e **girone finale tra le tre vincitrici**.
+- Dopo categorie, gironi e squadre, il sistema genera automaticamente tutti gli accoppiamenti del girone all’italiana e assegna i numeri gara. Una seconda generazione aggiunge soltanto le gare mancanti.
+- Le gare generate nascono in stato `draft`. L’amministratore sceglie la gara da una lista e assegna soltanto campo, data in formato `gg/MM/aaaa`, ora e staff.
+- Codici squadra, codici girone progressivi e numeri gara non vengono richiesti all’utente nei moduli ordinari.
+- Le bozze non appaiono in Agenda, Squadre, Classifica o Finali finché non sono allocate.
+- La configurazione è completa soltanto quando tutte le gare previste sono state generate e allocate, ogni girone contiene almeno due squadre, la modalità di ammissione è compatibile e non esistono sovrapposizioni di campo, squadra o staff.
+- Il foglio Excel di controllo segnala ogni gara non allocata come errore.
+
 ## Refertisti e QR di campo
 
 ### Obiettivo
