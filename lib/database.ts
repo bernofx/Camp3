@@ -70,6 +70,7 @@ export async function ensureDatabase() {
     }
     infrastructure.push(...[...staffRoles.entries()].map(([name,roles])=>db.prepare("INSERT OR IGNORE INTO staff(name,can_referee,can_scorekeeper,can_court_manager,active) VALUES(?,?,?,?,1)").bind(name,roles.referee,roles.scorekeeper,0)));
     await db.batch(infrastructure);
+    await db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) SELECT 'plan_confirmed',CASE WHEN EXISTS(SELECT 1 FROM matches) THEN '1' ELSE '0' END").run();
     await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
     const dayCount=await db.prepare("SELECT COUNT(*) AS count FROM tournament_days").first<{count:number}>();
     if(!Number(dayCount?.count||0)){const dates=await db.prepare("SELECT DISTINCT match_date AS date FROM matches WHERE match_date<>'' ORDER BY match_date").all<{date:string}>();if(dates.results.length)await db.batch(dates.results.map((item,index)=>db.prepare("INSERT OR IGNORE INTO tournament_days(code,name,day_date,start_time,sort_order) VALUES(?,?,?,?,?)").bind(`G${index+1}`,`G${index+1}`,item.date,"09:00",index+1)));}
@@ -91,6 +92,7 @@ export async function ensureDatabase() {
       seedStatements.push(db.prepare(`INSERT OR IGNORE INTO matches(game_id,category_code,group_code,phase,match_date,match_time,court,home_ref,away_ref,scorekeeper,referee,court_manager,result,set_1,set_2,set_3,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(match.gameId,match.category,"",phase,match.date,match.time,match.court,home,away,match.scorekeeper,match.referee,"",match.result,match.sets[0]||"",match.sets[1]||"",match.sets[2]||"",match.result?"completed":"scheduled"));
     }
     await db.batch(seedStatements);
+    await db.prepare("UPDATE tournament_settings SET value='1' WHERE key='plan_confirmed'").run();
     await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
     const dates=await db.prepare("SELECT DISTINCT match_date AS date FROM matches WHERE match_date<>'' ORDER BY match_date").all<{date:string}>();if(dates.results.length)await db.batch(dates.results.map((item,index)=>db.prepare("INSERT OR IGNORE INTO tournament_days(code,name,day_date,start_time,sort_order) VALUES(?,?,?,?,?)").bind(`G${index+1}`,`G${index+1}`,item.date,"09:00",index+1)));
   })();

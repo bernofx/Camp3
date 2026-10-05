@@ -27,10 +27,11 @@ export async function POST(request:Request){
   try{
     if(scope==="groups"){
       if(!groups.length)return json({error:"La categoria non contiene gironi."},409);
+      const unassigned=teams.filter(team=>!team.groupCode);if(unassigned.length)return json({error:`Assegna prima tutte le squadre ai gironi (${unassigned.length} mancanti).`},409);
       const invalid=groups.filter(group=>teams.filter(team=>team.groupCode===group.code).length<2);if(invalid.length)return json({error:`Servono almeno due squadre in: ${invalid.map(item=>item.name).join(", ")}.`},409);
       const known=new Set(existing.filter(item=>item.phase==="girone").map(item=>pairKey(item.homeRef,item.awayRef))),drafts:{group:string;home:string;away:string}[]=[];
       for(const group of groups){const members=teams.filter(team=>team.groupCode===group.code);for(let i=0;i<members.length;i++)for(let j=i+1;j<members.length;j++){const key=pairKey(members[i].code,members[j].code);if(!known.has(key)){known.add(key);drafts.push({group:group.code,home:members[i].code,away:members[j].code});}}}
-      const ids=await nextIds(drafts.length);if(drafts.length)await db().batch(drafts.map((item,index)=>db().prepare("INSERT INTO matches(game_id,category_code,group_code,phase,match_date,match_time,court,home_ref,away_ref,status) VALUES(?,?,?,'girone','','','',?,?,'draft')").bind(ids[index],category,item.group,item.home,item.away)));
+      const ids=await nextIds(drafts.length);if(drafts.length)await db().batch([...drafts.map((item,index)=>db().prepare("INSERT INTO matches(game_id,category_code,group_code,phase,match_date,match_time,court,home_ref,away_ref,status) VALUES(?,?,?,'girone','','','',?,?,'draft')").bind(ids[index],category,item.group,item.home,item.away)),db().prepare("INSERT INTO tournament_settings(key,value) VALUES('plan_confirmed','0') ON CONFLICT(key) DO UPDATE SET value='0'")]);
       return json({ok:true,message:drafts.length?`Create ${drafts.length} gare di girone in bozza.`:"Il calendario dei gironi era già completo.",created:drafts.length});
     }
     if(scope==="finals"){
@@ -48,6 +49,7 @@ export async function POST(request:Request){
       else return json({error:"Non esiste ancora un modello automatico sicuro per questa combinazione di gironi e modalità. Scegli un’altra modalità nella categoria."},409);
       const ids=await nextIds(drafts.length);await db().batch(drafts.map((item,index)=>db().prepare("INSERT INTO matches(game_id,category_code,group_code,phase,match_date,match_time,court,home_ref,away_ref,status) VALUES(?,?,? ,?,'','','',?,?,'draft')").bind(ids[index],category,"",item.phase,item.label||item.home,item.label?"":item.away)));
       if(links.length)await db().batch(links.map(link=>db().prepare("INSERT INTO final_links(target_game_id,category_code,section_title,section_order,target_order,home_kind,home_ref,away_kind,away_ref) VALUES(?,?,?,1,?,?,?,?,?)").bind(ids[link.target],category,link.title,link.order,link.homeKind,typeof link.homeRef==="number"?ids[link.homeRef]:link.homeRef,link.awayKind,typeof link.awayRef==="number"?ids[link.awayRef]:link.awayRef)));
+      await db().prepare("INSERT INTO tournament_settings(key,value) VALUES('plan_confirmed','0') ON CONFLICT(key) DO UPDATE SET value='0'").run();
       return json({ok:true,message:`Create ${drafts.length} gare della fase finale in bozza.`,created:drafts.length});
     }
     return json({error:"Operazione non valida."},400);

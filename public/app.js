@@ -11,7 +11,7 @@
   let courtsCatalog = [];
   let daysCatalog = [];
   let staffCatalog = [];
-  let settingsCatalog = {match_duration_minutes:"70"};
+  let settingsCatalog = {match_duration_minutes:"70",plan_confirmed:"0"};
   let finalLinksCatalog = [];
   let teamsCatalog = Object.entries(staticData.teams).map(([code,name])=>({code,name,categoryCode:`U${code.slice(0,2)}`,groupCode:""}));
   let teamNames = {...staticData.teams};
@@ -148,7 +148,7 @@
     if(!response.ok)throw new Error("Database non disponibile");
     const payload=await response.json();
     if(!payload.ok||!Array.isArray(payload.matches))throw new Error("Dati non validi");
-    categoriesCatalog=payload.categories||[];groupsCatalog=payload.groups||[];teamsCatalog=payload.teams||[];courtsCatalog=payload.courts||[];daysCatalog=payload.days||[];staffCatalog=payload.staff||[];settingsCatalog=payload.settings||{match_duration_minutes:"70"};finalLinksCatalog=payload.finalLinks||[];
+    categoriesCatalog=payload.categories||[];groupsCatalog=payload.groups||[];teamsCatalog=payload.teams||[];courtsCatalog=payload.courts||[];daysCatalog=payload.days||[];staffCatalog=payload.staff||[];settingsCatalog=payload.settings||{match_duration_minutes:"70",plan_confirmed:"0"};finalLinksCatalog=payload.finalLinks||[];updatePlanVisibility();
     teamNames=Object.fromEntries(teamsCatalog.map(team=>[team.code,team.name]));
     qualificationGroups={};
     categoriesCatalog.forEach(category=>{
@@ -382,20 +382,14 @@
     const agendaValue=$("categoryFilter").value;
     $("categoryFilter").innerHTML=`<option value="all">Tutte</option>${options}`;
     if([...$("categoryFilter").options].some(option=>option.value===agendaValue))$("categoryFilter").value=agendaValue;
-    ["standingsCategory","finalsCategory"].forEach(id=>{const select=$(id),value=select.value;select.innerHTML=options;if([...select.options].some(option=>option.value===value))select.value=value;});
+    ["standingsCategory","finalsCategory","groupPlannerCategory"].forEach(id=>{const select=$(id),value=select.value;select.innerHTML=options;if([...select.options].some(option=>option.value===value))select.value=value;});
     document.querySelectorAll('#adminView select[name="categoryCode"]').forEach(select=>{const value=select.value;select.innerHTML=options;if([...select.options].some(option=>option.value===value))select.value=value;});
     const courtOptions=courtsCatalog.map(item=>`<option value="${esc(item.code)}">${esc(item.name||`Campo ${item.code}`)}</option>`).join("");
     const filterValue=$("courtFilter").value;$("courtFilter").innerHTML=`<option value="all">Tutti</option>${courtOptions}`;if([...$("courtFilter").options].some(option=>option.value===filterValue))$("courtFilter").value=filterValue;
-    document.querySelectorAll('#adminView select[name="court"]').forEach(select=>{const value=select.value;select.innerHTML=courtOptions;if([...select.options].some(option=>option.value===value))select.value=value;});
+    document.querySelectorAll('select[name="court"]').forEach(select=>{const value=select.value;select.innerHTML=courtOptions;if([...select.options].some(option=>option.value===value))select.value=value;});
     const staffOptions=(role)=>`<option value="">Da definire</option>${staffCatalog.filter(item=>item[role]).map(item=>`<option value="${esc(item.name)}">${esc(item.name)}</option>`).join("")}`;
-    [["scorekeeper","canScorekeeper"],["referee","canReferee"],["courtManager","canCourtManager"]].forEach(([name,role])=>document.querySelectorAll(`#adminView select[name="${name}"]`).forEach(select=>{const value=select.value;select.innerHTML=staffOptions(role);if([...select.options].some(option=>option.value===value))select.value=value;}));
-    populateGroupSelector();populateAllocationSelector();updateAdmissionAdvice();
-  }
-
-  function populateGroupSelector(){
-    const form=$("teamForm"),category=form?.elements.categoryCode.value,select=form?.elements.groupCode;if(!select)return;const value=select.value;
-    select.innerHTML=groupsCatalog.filter(item=>item.categoryCode===category).map(item=>`<option value="${esc(item.code)}">${esc(item.name)} (${esc(item.code)})</option>`).join("");
-    if([...select.options].some(option=>option.value===value))select.value=value;
+    [["scorekeeper","canScorekeeper"],["referee","canReferee"],["courtManager","canCourtManager"]].forEach(([name,role])=>document.querySelectorAll(`select[name="${name}"]`).forEach(select=>{const value=select.value;select.innerHTML=staffOptions(role);if([...select.options].some(option=>option.value===value))select.value=value;}));
+    populateAllocationSelector();updateAdmissionAdvice();
   }
 
   function populateAllocationSelector(){
@@ -415,6 +409,22 @@
 
   const italianDate=value=>{if(!value)return "";const [y,m,d]=value.split("-");return y&&m&&d?`${d}/${m}/${y}`:value;};
 
+  function updatePlanVisibility(){
+    const confirmed=String(settingsCatalog.plan_confirmed||"0")==="1",tab=$("standingsTab");if(tab)tab.hidden=!confirmed;
+    if(!confirmed&&$("standingsView")?.classList.contains("active")){document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));$("agendaTab").classList.add("active");$("agendaView").classList.add("active");}
+  }
+
+  function renderGroupPlanner(){
+    const select=$("groupPlannerCategory");if(!select)return;const category=select.value||categoriesCatalog[0]?.code||"",groups=groupsCatalog.filter(item=>item.categoryCode===category),teams=teamsCatalog.filter(item=>item.categoryCode===category),locked=matchesCatalog.length>0,areas=[{code:"",name:"Non assegnate"},...groups],options=`<option value="">Non assegnata</option>${groups.map(item=>`<option value="${esc(item.code)}">${esc(item.name)}</option>`).join("")}`;
+    const status=$("groupPlannerStatus");status.classList.toggle("complete",!locked);status.innerHTML=locked?"<strong>Composizione bloccata</strong><br>Per cambiare i gironi devi prima svuotare completamente le gare da Gestione.":"<strong>Composizione modificabile</strong><br>Assegna tutte le squadre prima di generare le gare.";
+    $("groupPlannerBoards").innerHTML=areas.map(area=>{const members=teams.filter(team=>(team.groupCode||"")==area.code);return `<section class="group-board" data-group-drop="${esc(area.code)}"><h3>${esc(area.name)} <span>${members.length}</span></h3><div class="group-team-list">${members.map(team=>`<article class="group-team" data-group-team="${esc(team.code)}" draggable="${locked?"false":"true"}" style="--match-tint:${tint(categoryColor(category),.20)}"><div><strong>${esc(team.name)}</strong><small>${esc(team.code)}</small></div><label>Sposta in<select data-team-group-select="${esc(team.code)}" ${locked?"disabled":""}>${options}</select></label></article>`).join("")||'<div class="planner-empty">Nessuna squadra</div>'}</div></section>`;}).join("")||'<div class="empty">Configura prima i gironi della categoria.</div>';
+    document.querySelectorAll("[data-team-group-select]").forEach(control=>control.value=teams.find(team=>team.code===control.dataset.teamGroupSelect)?.groupCode||"");
+  }
+
+  async function moveTeamToGroup(teamCode,groupCode){
+    const category=$("groupPlannerCategory").value;try{await apiPost("/api/admin/catalog",{entity:"teamGroup",action:"save",data:{code:teamCode,categoryCode:category,groupCode}});await sync();renderGroupPlanner();}catch(error){alert(error.message);renderGroupPlanner();}
+  }
+
   function plannerDay(){return daysCatalog.find(item=>item.code===$("plannerDay")?.value);}
   function initializePlanner(force=false){
     const select=$("plannerDay");if(!select)return;const current=select.value||plannerDayCode,options=daysCatalog.map(item=>`<option value="${esc(item.code)}">${esc(item.name)} · ${esc(italianDate(item.date))}</option>`).join("");select.innerHTML=options;if(daysCatalog.some(item=>item.code===current))select.value=current;plannerDayCode=select.value;
@@ -428,7 +438,7 @@
     $("plannerPool").innerHTML=pool.map(item=>`<article class="planner-game" draggable="true" data-planner-game="${esc(item.gameId)}" style="--match-tint:${tint(categoryColor(item.category),.20)}"><span>${esc(plannerLabel(item))}</span><button type="button" data-planner-add="${esc(item.gameId)}" ${plannerSelectedCourt?"":"disabled"}>Aggiungi</button></article>`).join("")||'<div class="planner-empty">Nessuna gara non allocata.</div>';
     const court=courtsCatalog.find(item=>item.code===plannerSelectedCourt),ids=plannerLanes[plannerSelectedCourt]||[],start=day?day.startTime:"09:00",startMinutes=start.split(":").reduce((sum,value,index)=>sum+Number(value)*(index?1:60),0);
     $("plannerLane").innerHTML=court?`<div class="planner-lane-head"><div><small>${day?esc(day.name):"Giornata"}</small><h4>${esc(court.name)}</h4></div><span>Slot da ${duration} min</span></div><div class="planner-drop" data-planner-drop="${esc(court.code)}">${ids.map((id,index)=>{const item=matchesCatalog.find(match=>match.gameId===id),total=startMinutes+index*duration,computed=`${String(Math.floor(total/60)).padStart(2,"0")}:${String(total%60).padStart(2,"0")}`,time=!plannerDirty&&item?.time?item.time:computed;return item?`<article class="planner-game scheduled" draggable="true" data-planner-game="${esc(id)}" style="--match-tint:${tint(categoryColor(item.category),.20)}"><time>${esc(time)}</time><span>${esc(plannerLabel(item))}</span><div><button type="button" data-planner-move="up" data-game="${esc(id)}" aria-label="Sposta su">↑</button><button type="button" data-planner-move="down" data-game="${esc(id)}" aria-label="Sposta giù">↓</button><button type="button" data-planner-remove="${esc(id)}" aria-label="Rimuovi">×</button></div></article>`:"";}).join("")||'<div class="planner-empty">Trascina qui le gare.</div>'}</div>`:'<div class="planner-empty">Configura almeno un campo.</div>';
-    const shift=$("shiftForm"),shiftSelect=shift.elements.fromGameId;shiftSelect.innerHTML=ids.map(id=>`<option value="${esc(id)}">Gara ${esc(id)}</option>`).join("");shift.querySelector("button").disabled=!ids.length;$("plannerHint").textContent=day?`${day.name}: ${italianDate(day.date)} · primo orario ${day.startTime}`:"Configura prima una giornata.";
+    const shift=$("shiftForm"),shiftSelect=shift.elements.fromGameId;shiftSelect.innerHTML=ids.map(id=>`<option value="${esc(id)}">Gara ${esc(id)}</option>`).join("");shift.querySelector("button").disabled=!ids.length;$("plannerHint").textContent=day?`${day.name}: ${italianDate(day.date)} · primo orario ${day.startTime}`:"Configura prima una giornata.";$("confirmPlan").textContent=String(settingsCatalog.plan_confirmed||"0")==="1"?"Piano confermato ✓":"Conferma piano";
   }
 
   function plannerAdd(gameId){if(!plannerSelectedCourt)return;Object.values(plannerLanes).forEach(ids=>{const index=ids.indexOf(gameId);if(index>=0)ids.splice(index,1);});plannerLanes[plannerSelectedCourt]??=[];plannerLanes[plannerSelectedCourt].push(gameId);plannerDirty=true;renderPlanner();}
@@ -436,10 +446,11 @@
   function plannerMove(gameId,direction){const ids=plannerLanes[plannerSelectedCourt]||[],index=ids.indexOf(gameId),target=direction==="up"?index-1:index+1;if(index<0||target<0||target>=ids.length)return;[ids[index],ids[target]]=[ids[target],ids[index]];plannerDirty=true;renderPlanner();}
 
   async function savePlanner(){const box=$("plannerMessage");box.textContent="Salvataggio…";try{const payload=await apiPost("/api/admin/planner",{action:"applyDay",dayCode:$("plannerDay").value,lanes:plannerLanes});plannerDirty=false;box.textContent=payload.message;await sync();renderPlanner(true);}catch(error){box.textContent=error.message;}}
+  async function confirmPlan(){const box=$("plannerMessage");box.textContent="Controllo del piano…";try{const payload=await apiPost("/api/admin/planner",{action:"confirmPlan"});box.textContent=payload.message;await sync();}catch(error){box.textContent=error.message;}}
 
   function configurationIssues(){
     const issues=[],unallocated=matchesCatalog.filter(item=>!item.date||!item.time||!item.court||item.status==="draft");
-    if(unallocated.length)issues.push(`${unallocated.length} gare ancora da allocare.`);
+    if(unallocated.length)issues.push(`${unallocated.length} gare ancora da allocare.`);const unassigned=teamsCatalog.filter(team=>!team.groupCode);if(unassigned.length)issues.push(`${unassigned.length} squadre non ancora assegnate a un girone.`);
     categoriesCatalog.forEach(category=>{
       const groups=groupsCatalog.filter(group=>group.categoryCode===category.code);if(!groups.length)issues.push(`${category.code}: nessun girone.`);
       groups.forEach(group=>{const count=teamsCatalog.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).length;if(count<2)issues.push(`${category.code} ${group.name}: servono almeno 2 squadre.`);});
@@ -456,11 +467,13 @@
   function setAuth(user){
     currentUser=user?.role==="admin"?user:null;
     $("adminTab").hidden=!currentUser;
+    $("groupsTab").hidden=!currentUser;
     $("plannerTab").hidden=!currentUser;
     document.body.classList.toggle("admin-visible",Boolean(currentUser));
     $("loginButton").textContent=currentUser?`Esci · ${currentUser.username}`:"Accesso admin";
+    if(!currentUser&&[$("adminView"),$("groupsView"),$("plannerView")].some(view=>view.classList.contains("active"))){document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));$("agendaTab").classList.add("active");$("agendaView").classList.add("active");}
     renderAgenda();renderTeams();
-    if(currentUser)renderAdmin();
+    if(currentUser){renderAdmin();renderGroupPlanner();}
   }
 
   async function loadSession(){
@@ -487,12 +500,12 @@
     $("dayAdminList").innerHTML=daysCatalog.map(item=>adminRow(`<strong>${esc(item.name)}</strong> · ${esc(italianDate(item.date))} · dalle ${esc(item.startTime)}`,"day",item.code)).join("");
     $("categoryAdminList").innerHTML=categoriesCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.admissionMethod==="top2_each"?"prime 2 per girone":item.admissionMethod==="winners_plus_best_second"?"vincitrici + migliore seconda":"girone finale vincitrici")}`,"category",item.code)).join("");
     $("groupAdminList").innerHTML=groupsCatalog.map(item=>adminRow(`<strong>${esc(item.categoryCode)} ${esc(item.code)}</strong> · ${esc(item.name)}`,"group",`${item.categoryCode}|${item.code}`)).join("");
-    $("teamAdminList").innerHTML=teamsCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.categoryCode)} ${esc(item.groupCode)}`,"team",item.code)).join("");
+    $("teamAdminList").innerHTML=teamsCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.categoryCode)} · ${item.groupCode?`girone ${esc(item.groupCode)}`:"non assegnata"}`,"team",item.code)).join("");
     $("staffAdminList").innerHTML=staffCatalog.map(item=>{const roles=[item.canReferee&&"arbitro",item.canScorekeeper&&"refertista",item.canCourtManager&&"responsabile"].filter(Boolean).join(", ");return adminRow(`<strong>${esc(item.name)}</strong> · ${esc(roles)}`,"staff",item.id);}).join("");
     $("matchAdminList").innerHTML=matchesCatalog.map(item=>`<div style="--match-tint:${tint(categoryColor(item.category),.18)}"><span><strong>${esc(item.gameId)}</strong> · ${item.date?esc(italianDate(item.date)):"da allocare"} ${esc(item.time||"")} · ${esc(item.category)} · ${esc(expandMatchup(item.matchup))}${item.status==="draft"?'<span class="draft-badge">bozza</span>':""}</span><span class="admin-row-actions"><button type="button" data-admin-edit="allocation" data-admin-key="${esc(item.gameId)}">Alloca</button><button type="button" data-admin-delete="match" data-admin-key="${esc(item.gameId)}">Elimina</button></span></div>`).join("");
     $("finalLinkAdminList").innerHTML=finalLinksCatalog.map(item=>`<div><span><strong>Gara ${esc(item.targetGameId)}</strong> · ${esc(item.sectionTitle)} · ${esc(item.homeKind)} ${esc(item.homeRef)} / ${esc(item.awayKind)} ${esc(item.awayRef)}</span></div>`).join("");
-    const issues=configurationIssues(),status=$("configurationStatus"),shown=issues.slice(0,8),remaining=issues.length-shown.length;status.classList.toggle("complete",!issues.length);status.innerHTML=issues.length?`<strong>Configurazione incompleta · ${issues.length} controlli da risolvere</strong><ul>${shown.map(item=>`<li>${esc(item)}</li>`).join("")}${remaining?`<li>Altri ${remaining} dettagli sono riportati nell’Excel di controllo.</li>`:""}</ul>`:"Configurazione completa: tutte le gare sono allocate e i controlli strutturali sono soddisfatti.";
-    renderPlanner();
+    const issues=configurationIssues(),status=$("configurationStatus"),shown=issues.slice(0,8),remaining=issues.length-shown.length,confirmed=String(settingsCatalog.plan_confirmed||"0")==="1";status.classList.toggle("complete",!issues.length);status.innerHTML=issues.length?`<strong>Configurazione incompleta · ${issues.length} controlli da risolvere</strong><ul>${shown.map(item=>`<li>${esc(item)}</li>`).join("")}${remaining?`<li>Altri ${remaining} dettagli sono riportati nell’Excel di controllo.</li>`:""}</ul>`:confirmed?"Piano confermato: calendario e Classifica sono pubblicati.":"Configurazione completa: usa “Conferma piano” nel tab Pianifica per pubblicare la Classifica.";
+    renderPlanner();renderGroupPlanner();
   }
 
   function entityData(entity,key){
@@ -508,7 +521,7 @@
   }
 
   function formForEntity(entity){return $(`${entity}Form`);}
-  function fillAdminForm(entity,key){const data=entityData(entity,key),form=formForEntity(entity);if(!data||!form)return;Object.entries(data).forEach(([name,value])=>{if(form.elements[name]){if(form.elements[name].type==="checkbox")form.elements[name].checked=Boolean(value);else form.elements[name].value=value??"";}});if(entity==="team")populateGroupSelector();if(entity==="category")updateAdmissionAdvice();form.scrollIntoView({behavior:"smooth",block:"center"});}
+  function fillAdminForm(entity,key){const data=entityData(entity,key),form=formForEntity(entity);if(!data||!form)return;Object.entries(data).forEach(([name,value])=>{if(form.elements[name]){if(form.elements[name].type==="checkbox")form.elements[name].checked=Boolean(value);else form.elements[name].value=value??"";}});if(entity==="category")updateAdmissionAdvice();if(entity==="allocation")$("allocationDetails").open=true;form.scrollIntoView({behavior:"smooth",block:"center"});}
 
   async function saveAdminEntity(entity,form){
     const data=Object.fromEntries(new FormData(form).entries());await apiPost("/api/admin/catalog",{entity,action:"save",data});form.reset();await sync();renderAdmin();
@@ -529,7 +542,7 @@
   function restoreSelections(){
     try{
       const saved=JSON.parse(localStorage.getItem(selectionKey)||"{}");
-      ["categoryFilter","courtFilter","teamSelect","standingsCategory","finalsCategory"].forEach(id=>{
+      ["categoryFilter","courtFilter","teamSelect","standingsCategory","finalsCategory","groupPlannerCategory"].forEach(id=>{
         const select=$(id), value=saved[id];
         if(value && [...select.options].some(option=>option.value===value))select.value=value;
       });
@@ -544,6 +557,7 @@
       teamSelect:$("teamSelect").value,
       standingsCategory:$("standingsCategory").value,
       finalsCategory:$("finalsCategory").value,
+      groupPlannerCategory:$("groupPlannerCategory").value,
       upcomingOnly:$("upcomingOnly").checked
     }));
   }
@@ -580,7 +594,7 @@
     try{const live=await fetchLiveMatches();mergeLive(live);populateCategorySelectors();populateTeams();notices=await noticeRequest;const changes=cached?.matches?changedResults(cached.matches,matches):[];localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),matches,notices,standings:sheetStandings}));setSync("live",`Aggiornato ora · ${config.label}`);showResultToast(changes);}
     catch(error){notices=await noticeRequest;if(cached?.matches){matches=cached.matches;sheetStandings=cached.standings||{};setSync("error",`Offline · dati salvati ${new Date(cached.at).toLocaleString("it-IT")}`);}else setSync("error",`Calendario offline · risultati non sincronizzati (${config.label})`);}
     finally{syncing=false;}
-    renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();if(currentUser)renderAdmin();
+    renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();if(currentUser){renderAdmin();renderGroupPlanner();}
   }
 
   $("environmentInfo").textContent=`Configurazione attiva: ${config.label}. Database interno D1.`;
@@ -598,17 +612,18 @@
     const card=event.target.closest(".match-card");if(card)toggleMatchCard(card);
   });
   document.addEventListener("keydown",event=>{const card=event.target.closest(".match-card");if(card&&(event.key==="Enter"||event.key===" ")){event.preventDefault();toggleMatchCard(card);}});
-  document.addEventListener("dragstart",event=>{const game=event.target.closest("[data-planner-game]");if(game&&event.dataTransfer){event.dataTransfer.setData("text/plain",game.dataset.plannerGame);event.dataTransfer.effectAllowed="move";}});
-  document.addEventListener("dragover",event=>{if(event.target.closest("[data-planner-drop]")){event.preventDefault();event.dataTransfer.dropEffect="move";}});
-  document.addEventListener("drop",event=>{const zone=event.target.closest("[data-planner-drop]");if(!zone||!event.dataTransfer)return;event.preventDefault();plannerSelectedCourt=zone.dataset.plannerDrop;plannerAdd(event.dataTransfer.getData("text/plain"));});
-  $("categoryFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("courtFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("upcomingOnly").addEventListener("change",()=>{saveSelections();renderAgenda();});$("teamSelect").addEventListener("change",()=>{saveSelections();renderTeams();});$("standingsCategory").addEventListener("change",()=>{saveSelections();renderStandings();});$("finalsCategory").addEventListener("change",()=>{saveSelections();renderFinals();});$("refreshButton").addEventListener("click",sync);$("resultToastClose").addEventListener("click",hideResultToast);
+  document.addEventListener("dragstart",event=>{const game=event.target.closest("[data-planner-game]"),team=event.target.closest("[data-group-team]");if(game&&event.dataTransfer){event.dataTransfer.setData("text/plain",game.dataset.plannerGame);event.dataTransfer.effectAllowed="move";}else if(team&&event.dataTransfer){event.dataTransfer.setData("text/plain",`team:${team.dataset.groupTeam}`);event.dataTransfer.effectAllowed="move";}});
+  document.addEventListener("dragover",event=>{if(event.target.closest("[data-planner-drop],[data-group-drop]")){event.preventDefault();event.dataTransfer.dropEffect="move";}});
+  document.addEventListener("drop",event=>{if(!event.dataTransfer)return;const value=event.dataTransfer.getData("text/plain"),groupZone=event.target.closest("[data-group-drop]");if(groupZone&&value.startsWith("team:")){event.preventDefault();moveTeamToGroup(value.slice(5),groupZone.dataset.groupDrop);return;}const zone=event.target.closest("[data-planner-drop]");if(!zone||value.startsWith("team:"))return;event.preventDefault();plannerSelectedCourt=zone.dataset.plannerDrop;plannerAdd(value);});
+  document.addEventListener("change",event=>{const select=event.target.closest("[data-team-group-select]");if(select)moveTeamToGroup(select.dataset.teamGroupSelect,select.value);});
+  $("categoryFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("courtFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("upcomingOnly").addEventListener("change",()=>{saveSelections();renderAgenda();});$("teamSelect").addEventListener("change",()=>{saveSelections();renderTeams();});$("standingsCategory").addEventListener("change",()=>{saveSelections();renderStandings();});$("finalsCategory").addEventListener("change",()=>{saveSelections();renderFinals();});$("groupPlannerCategory").addEventListener("change",()=>{saveSelections();renderGroupPlanner();});$("refreshButton").addEventListener("click",sync);$("resultToastClose").addEventListener("click",hideResultToast);
   $("loginButton").addEventListener("click",async()=>{if(currentUser){await apiPost("/api/auth/logout",{});setAuth(null);}else{$("loginError").textContent="";$("loginDialog").showModal();}});
   $("loginForm").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());try{const payload=await apiPost("/api/auth/login",data);$("loginDialog").close();form.reset();setAuth(payload.user);}catch(error){$("loginError").textContent=error.message;}});
   $("resultForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());try{await apiPost("/api/results",{gameId:data.gameId,category:data.category,result:data.result,sets:[data.set1,data.set2,data.set3]});$("resultDialog").close();await sync();}catch(error){$("resultError").textContent=error.message;}});
   [["settingsForm","settings"],["courtForm","court"],["dayForm","day"],["categoryForm","category"],["groupForm","group"],["teamForm","team"],["staffForm","staff"],["allocationForm","allocation"]].forEach(([id,entity])=>$(id).addEventListener("submit",async event=>{event.preventDefault();try{await saveAdminEntity(entity,event.currentTarget);}catch(error){alert(error.message);}}));
-  $("teamForm").elements.categoryCode.addEventListener("change",populateGroupSelector);$("categoryForm").elements.code.addEventListener("input",updateAdmissionAdvice);$("categoryForm").elements.admissionMethod.addEventListener("change",updateAdmissionAdvice);
+  $("categoryForm").elements.code.addEventListener("input",updateAdmissionAdvice);$("categoryForm").elements.admissionMethod.addEventListener("change",updateAdmissionAdvice);
   $("allocationForm").elements.gameId.addEventListener("change",event=>fillAdminForm("allocation",event.currentTarget.value));
-  $("plannerDay").addEventListener("change",()=>{plannerDirty=false;plannerDayCode=$("plannerDay").value;renderPlanner(true);});$("savePlanner").addEventListener("click",savePlanner);
+  $("plannerDay").addEventListener("change",()=>{plannerDirty=false;plannerDayCode=$("plannerDay").value;renderPlanner(true);});$("savePlanner").addEventListener("click",savePlanner);$("confirmPlan").addEventListener("click",confirmPlan);
   $("shiftForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries()),box=$("plannerMessage");try{const payload=await apiPost("/api/admin/planner",{action:"shift",dayCode:$("plannerDay").value,court:plannerSelectedCourt,fromGameId:data.fromGameId,deltaMinutes:Number(data.deltaMinutes)});box.textContent=payload.message;plannerDirty=false;await sync();renderPlanner(true);}catch(error){box.textContent=error.message;}});
   $("clearMatches").addEventListener("click",async()=>{const confirmation=prompt("Questa operazione elimina tutte le gare, i risultati e gli accoppiamenti. Digita SVUOTA per continuare.");if(confirmation!=="SVUOTA")return;try{await apiPost("/api/admin/planner",{action:"clearAll",confirmation});plannerDirty=false;await sync();alert("Tutte le gare sono state eliminate.");}catch(error){alert(error.message);}});
   populateTeams();restoreSelections();renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();loadSession();sync();setInterval(sync,60000);

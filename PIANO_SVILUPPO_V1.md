@@ -142,3 +142,11 @@ L’ordine verticale determina gli orari a partire dall’ora iniziale della gio
 Le gare generate restano in bozza finché non ricevono giornata, campo e orario. La configurazione è completa soltanto quando ogni gara è allocata e tutti i controlli sono superati. È disponibile anche un comando protetto dalla conferma testuale `SVUOTA` che elimina gare, risultati e collegamenti delle fasi finali, conservando categorie, gironi, squadre, campi, giornate e staff per una nuova generazione.
 
 Le schede di gare e squadre usano una tinta leggera della categoria. Nelle viste Classifica e Fase finale la tinta viene invece applicata allo sfondo della categoria selezionata, lasciando leggibili tabelle e tabelloni.
+
+## Composizione dei gironi e conferma del piano
+
+La creazione di una squadra richiede soltanto nome e categoria. L’amministratore compone successivamente i gironi nel tab dedicato **Gironi**, trascinando le squadre tra “Non assegnate” e le tabelle dei gironi disponibili; un menu su ogni squadra offre la stessa funzione sui dispositivi touch. La composizione viene bloccata appena esiste una gara: per rifarla occorre usare lo svuotamento completo e rigenerare il calendario.
+
+La Classifica diventa pubblica soltanto dopo la conferma del piano. Ogni modifica strutturale o temporale annulla la conferma; per confermare nuovamente il sistema richiede gare presenti e completamente allocate, nessuna squadra senza girone e nessun conflitto di calendario.
+
+Nel tab **Pianifica**, il pannello di dettaglio della singola gara consente di modificare data, ora, campo, refertista, arbitro e responsabile. Il refertista resta facoltativo perché può essere registrato successivamente tramite QR o dall’amministratore.
