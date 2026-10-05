@@ -31,7 +31,7 @@ async function scheduleData(){
     db().prepare(`SELECT game_id AS gameId,category_code AS category,match_date AS date,match_time AS time,court,home_ref AS homeRef,away_ref AS awayRef,scorekeeper,referee,court_manager AS courtManager FROM matches`).all<MatchRow>(),
     db().prepare(`SELECT target_game_id AS targetGameId,category_code AS categoryCode,home_kind AS homeKind,home_ref AS homeRef,away_kind AS awayKind,away_ref AS awayRef FROM final_links`).all<LinkRow>(),
   ]);
-  return {matches:new Map(matchRows.results.map(item=>[item.gameId,item])),links:new Map(linkRows.results.map(item=>[item.targetGameId,item]))};
+  return {matches:new Map<string,MatchRow>((matchRows.results as MatchRow[]).map(item=>[item.gameId,item])),links:new Map<string,LinkRow>((linkRows.results as LinkRow[]).map(item=>[item.targetGameId,item]))};
 }
 function scheduleConflict(candidate:MatchRow,all:Map<string,MatchRow>,links:Map<string,LinkRow>,duration:number){
   const combined=new Map(all);combined.set(candidate.gameId,candidate);const tokens=matchTokens(candidate.gameId,combined,links);
@@ -63,6 +63,10 @@ export async function POST(request:Request){
     }else if(entity==="court"&&action==="save"){
       const code=text(data.code);if(!/^[A-Za-z0-9_-]{1,12}$/.test(code))return json({error:"Codice campo non valido."},400);
       await db().prepare("INSERT INTO courts(code,name,sort_order,active) VALUES(?,?,?,1) ON CONFLICT(code) DO UPDATE SET name=excluded.name,sort_order=excluded.sort_order,active=1").bind(code,text(data.name)||`Campo ${code}`,Number(data.sortOrder)||0).run();
+    }else if(entity==="day"&&action==="save"){
+      let code=upper(data.code);if(!code){const rows=await db().prepare("SELECT code FROM tournament_days").all<{code:string}>();let index=1;const used=new Set(rows.results.map(item=>item.code));while(used.has(`G${index}`))index++;code=`G${index}`;}
+      const italian=text(data.date),parts=italian.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!parts)return json({error:"Inserisci la data nel formato gg/MM/aaaa."},400);const day=Number(parts[1]),month=Number(parts[2]),year=Number(parts[3]),parsed=new Date(Date.UTC(year,month-1,day));if(parsed.getUTCFullYear()!==year||parsed.getUTCMonth()!==month-1||parsed.getUTCDate()!==day)return json({error:"La data inserita non esiste."},400);const date=`${parts[3]}-${parts[2]}-${parts[1]}`,startTime=text(data.startTime);if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime))return json({error:"Ora iniziale non valida."},400);
+      await db().prepare("INSERT INTO tournament_days(code,name,day_date,start_time,sort_order) VALUES(?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET name=excluded.name,day_date=excluded.day_date,start_time=excluded.start_time,sort_order=excluded.sort_order").bind(code,text(data.name)||code,date,startTime,Number(data.sortOrder)||0).run();
     }else if(entity==="staff"&&action==="save"){
       const id=Number(data.id)||0,name=text(data.name);if(!name)return json({error:"Nome dello staff obbligatorio."},400);
       const referee=data.canReferee?1:0,scorekeeper=data.canScorekeeper?1:0,manager=data.canCourtManager?1:0;if(!referee&&!scorekeeper&&!manager)return json({error:"Seleziona almeno un ruolo."},400);
@@ -119,6 +123,7 @@ export async function POST(request:Request){
       else if(entity==="team")await db().prepare("UPDATE teams SET active=0 WHERE code=?").bind(text(data.code)).run();
       else if(entity==="category")await db().prepare("UPDATE categories SET active=0 WHERE code=?").bind(text(data.code)).run();
       else if(entity==="group")await db().prepare("DELETE FROM tournament_groups WHERE category_code=? AND code=?").bind(text(data.categoryCode),text(data.code)).run();
+      else if(entity==="day"){const row=await db().prepare("SELECT day_date AS date FROM tournament_days WHERE code=?").bind(text(data.code)).first<{date:string}>(),used=row&&await db().prepare("SELECT game_id FROM matches WHERE match_date=? LIMIT 1").bind(row.date).first<any>();if(used)return json({error:`La giornata contiene la gara ${used.game_id}.`},409);await db().prepare("DELETE FROM tournament_days WHERE code=?").bind(text(data.code)).run();}
       else return json({error:"Operazione non valida"},400);
     }else return json({error:"Operazione non valida"},400);
     return json({ok:true});

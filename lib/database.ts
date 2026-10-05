@@ -16,6 +16,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS tournament_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, category_code TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, UNIQUE(category_code, code))`,
   `CREATE TABLE IF NOT EXISTS teams (code TEXT PRIMARY KEY, name TEXT NOT NULL, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS courts (code TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
+  `CREATE TABLE IF NOT EXISTS tournament_days (code TEXT PRIMARY KEY, name TEXT NOT NULL, day_date TEXT NOT NULL UNIQUE, start_time TEXT NOT NULL DEFAULT '09:00', sort_order INTEGER NOT NULL DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS tournament_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS staff (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, can_referee INTEGER NOT NULL DEFAULT 0, can_scorekeeper INTEGER NOT NULL DEFAULT 0, can_court_manager INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS matches (game_id TEXT PRIMARY KEY, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', phase TEXT NOT NULL DEFAULT 'girone', match_date TEXT NOT NULL, match_time TEXT NOT NULL, court TEXT NOT NULL DEFAULT '', home_ref TEXT NOT NULL, away_ref TEXT NOT NULL, scorekeeper TEXT NOT NULL DEFAULT '', referee TEXT NOT NULL DEFAULT '', court_manager TEXT NOT NULL DEFAULT '', result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'scheduled')`,
@@ -70,6 +71,8 @@ export async function ensureDatabase() {
     infrastructure.push(...[...staffRoles.entries()].map(([name,roles])=>db.prepare("INSERT OR IGNORE INTO staff(name,can_referee,can_scorekeeper,can_court_manager,active) VALUES(?,?,?,?,1)").bind(name,roles.referee,roles.scorekeeper,0)));
     await db.batch(infrastructure);
     await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
+    const dayCount=await db.prepare("SELECT COUNT(*) AS count FROM tournament_days").first<{count:number}>();
+    if(!Number(dayCount?.count||0)){const dates=await db.prepare("SELECT DISTINCT match_date AS date FROM matches WHERE match_date<>'' ORDER BY match_date").all<{date:string}>();if(dates.results.length)await db.batch(dates.results.map((item,index)=>db.prepare("INSERT OR IGNORE INTO tournament_days(code,name,day_date,start_time,sort_order) VALUES(?,?,?,?,?)").bind(`G${index+1}`,`G${index+1}`,item.date,"09:00",index+1)));}
     const count = await db.prepare("SELECT COUNT(*) AS count FROM categories").first<{count:number}>();
     if (Number(count?.count || 0) > 0) return;
     const seedStatements = [];
@@ -89,6 +92,7 @@ export async function ensureDatabase() {
     }
     await db.batch(seedStatements);
     await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
+    const dates=await db.prepare("SELECT DISTINCT match_date AS date FROM matches WHERE match_date<>'' ORDER BY match_date").all<{date:string}>();if(dates.results.length)await db.batch(dates.results.map((item,index)=>db.prepare("INSERT OR IGNORE INTO tournament_days(code,name,day_date,start_time,sort_order) VALUES(?,?,?,?,?)").bind(`G${index+1}`,`G${index+1}`,item.date,"09:00",index+1)));
   })();
   return ready;
 }

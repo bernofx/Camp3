@@ -9,6 +9,7 @@
   let categoriesCatalog = [];
   let groupsCatalog = [];
   let courtsCatalog = [];
+  let daysCatalog = [];
   let staffCatalog = [];
   let settingsCatalog = {match_duration_minutes:"70"};
   let finalLinksCatalog = [];
@@ -25,12 +26,18 @@
   };
   let finalFlows = {};
   let finalBrackets = {};
+  let plannerLanes = {};
+  let plannerSelectedCourt = "";
+  let plannerDayCode = "";
+  let plannerDirty = false;
 
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const normalizeMatchup = value => String(value || "").replace(/\s*[-–]\s*/g," - ").trim();
   const dateTime = match => new Date(`${match.date}T${match.time}:00+02:00`);
   const dateLabel = value => new Intl.DateTimeFormat("it-IT", {weekday:"long",day:"numeric",month:"long"}).format(new Date(`${value}T12:00:00+02:00`));
+  const categoryColor=code=>categoriesCatalog.find(item=>item.code===code)?.color||"#dff4ea";
+  const tint=(hex,alpha=.14)=>{const value=String(hex||"").replace("#","");if(!/^[0-9a-f]{6}$/i.test(value))return `rgba(223,244,234,${alpha})`;return `rgba(${parseInt(value.slice(0,2),16)},${parseInt(value.slice(2,4),16)},${parseInt(value.slice(4,6),16)},${alpha})`;};
 
   function parseCsv(text) {
     const rows=[]; let row=[], cell="", quoted=false;
@@ -141,7 +148,7 @@
     if(!response.ok)throw new Error("Database non disponibile");
     const payload=await response.json();
     if(!payload.ok||!Array.isArray(payload.matches))throw new Error("Dati non validi");
-    categoriesCatalog=payload.categories||[];groupsCatalog=payload.groups||[];teamsCatalog=payload.teams||[];courtsCatalog=payload.courts||[];staffCatalog=payload.staff||[];settingsCatalog=payload.settings||{match_duration_minutes:"70"};finalLinksCatalog=payload.finalLinks||[];
+    categoriesCatalog=payload.categories||[];groupsCatalog=payload.groups||[];teamsCatalog=payload.teams||[];courtsCatalog=payload.courts||[];daysCatalog=payload.days||[];staffCatalog=payload.staff||[];settingsCatalog=payload.settings||{match_duration_minutes:"70"};finalLinksCatalog=payload.finalLinks||[];
     teamNames=Object.fromEntries(teamsCatalog.map(team=>[team.code,team.name]));
     qualificationGroups={};
     categoriesCatalog.forEach(category=>{
@@ -266,7 +273,7 @@
     const setDetails=hasDetails?`<span class="details-label">Parziali <span class="card-chevron" aria-hidden="true">⌄</span></span><div class="set-details" hidden>${sets.map((score,index)=>`<span><strong>${index+1}° set</strong>${esc(score)}</span>`).join("")}</div>`:"";
     const manager=match.courtManager?` · Responsabile: ${esc(match.courtManager)}`:"";
     const edit=currentUser?`<button class="edit-result" type="button" data-edit-game="${esc(match.gameId)}" aria-label="Modifica risultato gara ${esc(match.gameId)}">✎</button>`:"";
-    return `<article class="match-card${hasDetails?" has-details":""}" data-game-id="${esc(match.gameId)}" ${interaction}><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small><small>Gara ${esc(match.gameId)}</small></div><div class="match-main"><strong>${esc(expandMatchup(resolvedMatchup(match)))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}${manager}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span>${setDetails}${edit}</article>`;
+    return `<article class="match-card${hasDetails?" has-details":""}" style="--match-tint:${tint(categoryColor(match.category),.18)}" data-game-id="${esc(match.gameId)}" ${interaction}><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small><small>Gara ${esc(match.gameId)}</small></div><div class="match-main"><strong>${esc(expandMatchup(resolvedMatchup(match)))}</strong>${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}${manager}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span>${setDetails}${edit}</article>`;
   }
 
   function toggleMatchCard(card){
@@ -320,6 +327,7 @@
 
   function renderStandings(){
     const category=$("standingsCategory").value;
+    $("standingsView").style.backgroundColor=tint(categoryColor(category),.13);
     const groups=qualificationGroups[category]||{};
     $("standingsList").innerHTML=Object.entries(groups).map(([letter,codes])=>{
       const rows=groupStandings(codes,matches,category,letter).map((item,index)=>`<tr><td class="standing-position">${index+1}</td><td><strong>${esc(teamNames[item.code]||item.code)}</strong><small>${esc(item.code)}</small></td><td>${item.played}</td><td>${item.wins}</td><td>${item.setsFor}-${item.setsAgainst}</td><td class="standing-ratio">${ratioText(item)}</td><td class="standing-points">${item.points}</td></tr>`).join("");
@@ -354,6 +362,7 @@
 
   function renderFinals(){
     const category=$("finalsCategory").value;
+    $("finalsView").style.backgroundColor=tint(categoryColor(category),.13);
     const sections=finalBrackets[category]||[];
     const bracket=sections.map(section=>{
       const semis=section.semis.map(id=>bracketMatch(id,"Semifinale")).join("");
@@ -406,6 +415,28 @@
 
   const italianDate=value=>{if(!value)return "";const [y,m,d]=value.split("-");return y&&m&&d?`${d}/${m}/${y}`:value;};
 
+  function plannerDay(){return daysCatalog.find(item=>item.code===$("plannerDay")?.value);}
+  function initializePlanner(force=false){
+    const select=$("plannerDay");if(!select)return;const current=select.value||plannerDayCode,options=daysCatalog.map(item=>`<option value="${esc(item.code)}">${esc(item.name)} · ${esc(italianDate(item.date))}</option>`).join("");select.innerHTML=options;if(daysCatalog.some(item=>item.code===current))select.value=current;plannerDayCode=select.value;
+    if(force||!plannerDirty){const day=plannerDay();plannerLanes=Object.fromEntries(courtsCatalog.map(court=>[court.code,matchesCatalog.filter(item=>day&&item.date===day.date&&String(item.court)===String(court.code)).sort((a,b)=>a.time.localeCompare(b.time)).map(item=>item.gameId)]));plannerSelectedCourt=plannerLanes[plannerSelectedCourt]?plannerSelectedCourt:(courtsCatalog[0]?.code||"");plannerDirty=false;}
+  }
+
+  function plannerLabel(item){return `Gara ${item.gameId} · ${item.category} · ${expandMatchup(item.matchup)}`;}
+  function renderPlanner(force=false){
+    initializePlanner(force);const day=plannerDay(),duration=Number(settingsCatalog.match_duration_minutes||70),assigned=new Set(Object.values(plannerLanes).flat()),pool=matchesCatalog.filter(item=>!assigned.has(item.gameId)&&(!item.date||item.status==="draft"||(day&&item.date===day.date)));
+    $("plannerCourts").innerHTML=courtsCatalog.map(court=>`<button type="button" class="planner-court${court.code===plannerSelectedCourt?" active":""}" data-planner-court="${esc(court.code)}"><strong>${esc(court.name)}</strong><span>${(plannerLanes[court.code]||[]).length} gare</span></button>`).join("");
+    $("plannerPool").innerHTML=pool.map(item=>`<article class="planner-game" draggable="true" data-planner-game="${esc(item.gameId)}" style="--match-tint:${tint(categoryColor(item.category),.20)}"><span>${esc(plannerLabel(item))}</span><button type="button" data-planner-add="${esc(item.gameId)}" ${plannerSelectedCourt?"":"disabled"}>Aggiungi</button></article>`).join("")||'<div class="planner-empty">Nessuna gara non allocata.</div>';
+    const court=courtsCatalog.find(item=>item.code===plannerSelectedCourt),ids=plannerLanes[plannerSelectedCourt]||[],start=day?day.startTime:"09:00",startMinutes=start.split(":").reduce((sum,value,index)=>sum+Number(value)*(index?1:60),0);
+    $("plannerLane").innerHTML=court?`<div class="planner-lane-head"><div><small>${day?esc(day.name):"Giornata"}</small><h4>${esc(court.name)}</h4></div><span>Slot da ${duration} min</span></div><div class="planner-drop" data-planner-drop="${esc(court.code)}">${ids.map((id,index)=>{const item=matchesCatalog.find(match=>match.gameId===id),total=startMinutes+index*duration,computed=`${String(Math.floor(total/60)).padStart(2,"0")}:${String(total%60).padStart(2,"0")}`,time=!plannerDirty&&item?.time?item.time:computed;return item?`<article class="planner-game scheduled" draggable="true" data-planner-game="${esc(id)}" style="--match-tint:${tint(categoryColor(item.category),.20)}"><time>${esc(time)}</time><span>${esc(plannerLabel(item))}</span><div><button type="button" data-planner-move="up" data-game="${esc(id)}" aria-label="Sposta su">↑</button><button type="button" data-planner-move="down" data-game="${esc(id)}" aria-label="Sposta giù">↓</button><button type="button" data-planner-remove="${esc(id)}" aria-label="Rimuovi">×</button></div></article>`:"";}).join("")||'<div class="planner-empty">Trascina qui le gare.</div>'}</div>`:'<div class="planner-empty">Configura almeno un campo.</div>';
+    const shift=$("shiftForm"),shiftSelect=shift.elements.fromGameId;shiftSelect.innerHTML=ids.map(id=>`<option value="${esc(id)}">Gara ${esc(id)}</option>`).join("");shift.querySelector("button").disabled=!ids.length;$("plannerHint").textContent=day?`${day.name}: ${italianDate(day.date)} · primo orario ${day.startTime}`:"Configura prima una giornata.";
+  }
+
+  function plannerAdd(gameId){if(!plannerSelectedCourt)return;Object.values(plannerLanes).forEach(ids=>{const index=ids.indexOf(gameId);if(index>=0)ids.splice(index,1);});plannerLanes[plannerSelectedCourt]??=[];plannerLanes[plannerSelectedCourt].push(gameId);plannerDirty=true;renderPlanner();}
+  function plannerRemove(gameId){Object.values(plannerLanes).forEach(ids=>{const index=ids.indexOf(gameId);if(index>=0)ids.splice(index,1);});plannerDirty=true;renderPlanner();}
+  function plannerMove(gameId,direction){const ids=plannerLanes[plannerSelectedCourt]||[],index=ids.indexOf(gameId),target=direction==="up"?index-1:index+1;if(index<0||target<0||target>=ids.length)return;[ids[index],ids[target]]=[ids[target],ids[index]];plannerDirty=true;renderPlanner();}
+
+  async function savePlanner(){const box=$("plannerMessage");box.textContent="Salvataggio…";try{const payload=await apiPost("/api/admin/planner",{action:"applyDay",dayCode:$("plannerDay").value,lanes:plannerLanes});plannerDirty=false;box.textContent=payload.message;await sync();renderPlanner(true);}catch(error){box.textContent=error.message;}}
+
   function configurationIssues(){
     const issues=[],unallocated=matchesCatalog.filter(item=>!item.date||!item.time||!item.court||item.status==="draft");
     if(unallocated.length)issues.push(`${unallocated.length} gare ancora da allocare.`);
@@ -425,6 +456,7 @@
   function setAuth(user){
     currentUser=user?.role==="admin"?user:null;
     $("adminTab").hidden=!currentUser;
+    $("plannerTab").hidden=!currentUser;
     document.body.classList.toggle("admin-visible",Boolean(currentUser));
     $("loginButton").textContent=currentUser?`Esci · ${currentUser.username}`:"Accesso admin";
     renderAgenda();renderTeams();
@@ -452,13 +484,15 @@
     populateCategorySelectors();
     $("settingsForm").elements.matchDurationMinutes.value=settingsCatalog.match_duration_minutes||70;
     $("courtAdminList").innerHTML=courtsCatalog.map(item=>adminRow(`<strong>${esc(item.name)}</strong> · codice ${esc(item.code)}`,"court",item.code)).join("");
+    $("dayAdminList").innerHTML=daysCatalog.map(item=>adminRow(`<strong>${esc(item.name)}</strong> · ${esc(italianDate(item.date))} · dalle ${esc(item.startTime)}`,"day",item.code)).join("");
     $("categoryAdminList").innerHTML=categoriesCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.admissionMethod==="top2_each"?"prime 2 per girone":item.admissionMethod==="winners_plus_best_second"?"vincitrici + migliore seconda":"girone finale vincitrici")}`,"category",item.code)).join("");
     $("groupAdminList").innerHTML=groupsCatalog.map(item=>adminRow(`<strong>${esc(item.categoryCode)} ${esc(item.code)}</strong> · ${esc(item.name)}`,"group",`${item.categoryCode}|${item.code}`)).join("");
     $("teamAdminList").innerHTML=teamsCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.categoryCode)} ${esc(item.groupCode)}`,"team",item.code)).join("");
     $("staffAdminList").innerHTML=staffCatalog.map(item=>{const roles=[item.canReferee&&"arbitro",item.canScorekeeper&&"refertista",item.canCourtManager&&"responsabile"].filter(Boolean).join(", ");return adminRow(`<strong>${esc(item.name)}</strong> · ${esc(roles)}`,"staff",item.id);}).join("");
-    $("matchAdminList").innerHTML=matchesCatalog.map(item=>`<div><span><strong>${esc(item.gameId)}</strong> · ${item.date?esc(italianDate(item.date)):"da allocare"} ${esc(item.time||"")} · ${esc(item.category)} · ${esc(expandMatchup(item.matchup))}${item.status==="draft"?'<span class="draft-badge">bozza</span>':""}</span><span class="admin-row-actions"><button type="button" data-admin-edit="allocation" data-admin-key="${esc(item.gameId)}">Alloca</button><button type="button" data-admin-delete="match" data-admin-key="${esc(item.gameId)}">Elimina</button></span></div>`).join("");
+    $("matchAdminList").innerHTML=matchesCatalog.map(item=>`<div style="--match-tint:${tint(categoryColor(item.category),.18)}"><span><strong>${esc(item.gameId)}</strong> · ${item.date?esc(italianDate(item.date)):"da allocare"} ${esc(item.time||"")} · ${esc(item.category)} · ${esc(expandMatchup(item.matchup))}${item.status==="draft"?'<span class="draft-badge">bozza</span>':""}</span><span class="admin-row-actions"><button type="button" data-admin-edit="allocation" data-admin-key="${esc(item.gameId)}">Alloca</button><button type="button" data-admin-delete="match" data-admin-key="${esc(item.gameId)}">Elimina</button></span></div>`).join("");
     $("finalLinkAdminList").innerHTML=finalLinksCatalog.map(item=>`<div><span><strong>Gara ${esc(item.targetGameId)}</strong> · ${esc(item.sectionTitle)} · ${esc(item.homeKind)} ${esc(item.homeRef)} / ${esc(item.awayKind)} ${esc(item.awayRef)}</span></div>`).join("");
     const issues=configurationIssues(),status=$("configurationStatus"),shown=issues.slice(0,8),remaining=issues.length-shown.length;status.classList.toggle("complete",!issues.length);status.innerHTML=issues.length?`<strong>Configurazione incompleta · ${issues.length} controlli da risolvere</strong><ul>${shown.map(item=>`<li>${esc(item)}</li>`).join("")}${remaining?`<li>Altri ${remaining} dettagli sono riportati nell’Excel di controllo.</li>`:""}</ul>`:"Configurazione completa: tutte le gare sono allocate e i controlli strutturali sono soddisfatti.";
+    renderPlanner();
   }
 
   function entityData(entity,key){
@@ -466,6 +500,7 @@
     if(entity==="group"){const [categoryCode,code]=key.split("|");return groupsCatalog.find(item=>item.categoryCode===categoryCode&&item.code===code);}
     if(entity==="team")return teamsCatalog.find(item=>item.code===key);
     if(entity==="court")return courtsCatalog.find(item=>item.code===key);
+    if(entity==="day"){const item=daysCatalog.find(row=>row.code===key);return item&&{...item,date:italianDate(item.date)};}
     if(entity==="staff")return staffCatalog.find(item=>String(item.id)===String(key));
     if(entity==="finalLink")return finalLinksCatalog.find(item=>item.targetGameId===key);
     if(entity==="allocation"){const item=matchesCatalog.find(match=>match.gameId===key);if(!item)return null;return {gameId:item.gameId,date:italianDate(item.date),time:item.time,court:item.court,scorekeeper:item.scorekeeper,referee:item.referee,courtManager:item.courtManager||""};}
@@ -555,17 +590,27 @@
     const editAdmin=event.target.closest("[data-admin-edit]");if(editAdmin){fillAdminForm(editAdmin.dataset.adminEdit,editAdmin.dataset.adminKey);return;}
     const deleteAdmin=event.target.closest("[data-admin-delete]");if(deleteAdmin){deleteAdminEntity(deleteAdmin.dataset.adminDelete,deleteAdmin.dataset.adminKey).catch(error=>alert(error.message));return;}
     const generator=event.target.closest("[data-generate]");if(generator){generateSchedule(generator.dataset.generate).catch(()=>{});return;}
+    const court=event.target.closest("[data-planner-court]");if(court){plannerSelectedCourt=court.dataset.plannerCourt;renderPlanner();return;}
+    const add=event.target.closest("[data-planner-add]");if(add){plannerAdd(add.dataset.plannerAdd);return;}
+    const remove=event.target.closest("[data-planner-remove]");if(remove){plannerRemove(remove.dataset.plannerRemove);return;}
+    const move=event.target.closest("[data-planner-move]");if(move){plannerMove(move.dataset.game,move.dataset.plannerMove);return;}
     const closer=event.target.closest("[data-close-dialog]");if(closer){$(closer.dataset.closeDialog).close();return;}
     const card=event.target.closest(".match-card");if(card)toggleMatchCard(card);
   });
   document.addEventListener("keydown",event=>{const card=event.target.closest(".match-card");if(card&&(event.key==="Enter"||event.key===" ")){event.preventDefault();toggleMatchCard(card);}});
+  document.addEventListener("dragstart",event=>{const game=event.target.closest("[data-planner-game]");if(game&&event.dataTransfer){event.dataTransfer.setData("text/plain",game.dataset.plannerGame);event.dataTransfer.effectAllowed="move";}});
+  document.addEventListener("dragover",event=>{if(event.target.closest("[data-planner-drop]")){event.preventDefault();event.dataTransfer.dropEffect="move";}});
+  document.addEventListener("drop",event=>{const zone=event.target.closest("[data-planner-drop]");if(!zone||!event.dataTransfer)return;event.preventDefault();plannerSelectedCourt=zone.dataset.plannerDrop;plannerAdd(event.dataTransfer.getData("text/plain"));});
   $("categoryFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("courtFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("upcomingOnly").addEventListener("change",()=>{saveSelections();renderAgenda();});$("teamSelect").addEventListener("change",()=>{saveSelections();renderTeams();});$("standingsCategory").addEventListener("change",()=>{saveSelections();renderStandings();});$("finalsCategory").addEventListener("change",()=>{saveSelections();renderFinals();});$("refreshButton").addEventListener("click",sync);$("resultToastClose").addEventListener("click",hideResultToast);
   $("loginButton").addEventListener("click",async()=>{if(currentUser){await apiPost("/api/auth/logout",{});setAuth(null);}else{$("loginError").textContent="";$("loginDialog").showModal();}});
   $("loginForm").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());try{const payload=await apiPost("/api/auth/login",data);$("loginDialog").close();form.reset();setAuth(payload.user);}catch(error){$("loginError").textContent=error.message;}});
   $("resultForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());try{await apiPost("/api/results",{gameId:data.gameId,category:data.category,result:data.result,sets:[data.set1,data.set2,data.set3]});$("resultDialog").close();await sync();}catch(error){$("resultError").textContent=error.message;}});
-  [["settingsForm","settings"],["courtForm","court"],["categoryForm","category"],["groupForm","group"],["teamForm","team"],["staffForm","staff"],["allocationForm","allocation"]].forEach(([id,entity])=>$(id).addEventListener("submit",async event=>{event.preventDefault();try{await saveAdminEntity(entity,event.currentTarget);}catch(error){alert(error.message);}}));
+  [["settingsForm","settings"],["courtForm","court"],["dayForm","day"],["categoryForm","category"],["groupForm","group"],["teamForm","team"],["staffForm","staff"],["allocationForm","allocation"]].forEach(([id,entity])=>$(id).addEventListener("submit",async event=>{event.preventDefault();try{await saveAdminEntity(entity,event.currentTarget);}catch(error){alert(error.message);}}));
   $("teamForm").elements.categoryCode.addEventListener("change",populateGroupSelector);$("categoryForm").elements.code.addEventListener("input",updateAdmissionAdvice);$("categoryForm").elements.admissionMethod.addEventListener("change",updateAdmissionAdvice);
   $("allocationForm").elements.gameId.addEventListener("change",event=>fillAdminForm("allocation",event.currentTarget.value));
+  $("plannerDay").addEventListener("change",()=>{plannerDirty=false;plannerDayCode=$("plannerDay").value;renderPlanner(true);});$("savePlanner").addEventListener("click",savePlanner);
+  $("shiftForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries()),box=$("plannerMessage");try{const payload=await apiPost("/api/admin/planner",{action:"shift",dayCode:$("plannerDay").value,court:plannerSelectedCourt,fromGameId:data.fromGameId,deltaMinutes:Number(data.deltaMinutes)});box.textContent=payload.message;plannerDirty=false;await sync();renderPlanner(true);}catch(error){box.textContent=error.message;}});
+  $("clearMatches").addEventListener("click",async()=>{const confirmation=prompt("Questa operazione elimina tutte le gare, i risultati e gli accoppiamenti. Digita SVUOTA per continuare.");if(confirmation!=="SVUOTA")return;try{await apiPost("/api/admin/planner",{action:"clearAll",confirmation});plannerDirty=false;await sync();alert("Tutte le gare sono state eliminate.");}catch(error){alert(error.message);}});
   populateTeams();restoreSelections();renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();loadSession();sync();setInterval(sync,60000);
   if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 

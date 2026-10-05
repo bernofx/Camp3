@@ -132,3 +132,13 @@ Le squadre o le posizioni `C1`, `C2`, `D3` usate come responsabili del referto n
 5. Controlli atomici per campo e squadre, con storico delle variazioni.
 6. Aggiornamento immediato di Agenda, Squadre, Finali ed Excel.
 7. Test di cambio campo, ritardo, doppia scansione, gara già iniziata e correzione amministrativa.
+
+## Pianificazione per campi e giornate
+
+L’allocazione ha un tab amministrativo dedicato, **Pianifica**, separato dalle anagrafiche di **Gestione**. L’amministratore sceglie una giornata configurata come G1, G2 e così via, poi apre un campo alla volta. Le gare ancora da allocare possono essere trascinate nella corsia del campo o aggiunte con un pulsante, utile anche da telefono.
+
+L’ordine verticale determina gli orari a partire dall’ora iniziale della giornata e dalla durata indicativa della gara. Prima del salvataggio il sistema controlla sovrapposizioni di campo, squadre, arbitri e responsabili di campo, comprese le dipendenze tra semifinali e finali. Una funzione separata sposta una gara e tutte le successive dello stesso campo di un numero di minuti positivo o negativo, così da inserire pause o assorbire ritardi.
+
+Le gare generate restano in bozza finché non ricevono giornata, campo e orario. La configurazione è completa soltanto quando ogni gara è allocata e tutti i controlli sono superati. È disponibile anche un comando protetto dalla conferma testuale `SVUOTA` che elimina gare, risultati e collegamenti delle fasi finali, conservando categorie, gironi, squadre, campi, giornate e staff per una nuova generazione.
+
+Le schede di gare e squadre usano una tinta leggera della categoria. Nelle viste Classifica e Fase finale la tinta viene invece applicata allo sfondo della categoria selezionata, lasciando leggibili tabelle e tabelloni.
