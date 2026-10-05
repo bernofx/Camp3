@@ -25,7 +25,7 @@ Ogni campo ha un QR stabile e stampabile prima del torneo. Il codice contiene un
 
 La pagina permette soltanto di:
 
-1. scegliere una partita non ancora iniziata;
+1. scegliere una partita che non ha ancora un risultato finale;
 2. confermare il campo effettivo;
 3. inserire il nome del refertista presente.
 
@@ -33,15 +33,16 @@ Non permette di modificare risultati, squadre, orari o altre informazioni ammini
 
 ### Selezione della partita e cambi campo
 
-La scansione non limita la scelta alle sole partite programmate sul campo del QR. Mostra tutte le gare compatibili non ancora iniziate, ordinate per plausibilità.
+La scansione non limita la scelta alle sole partite programmate sul campo del QR. Mostra tutte le gare della giornata che non hanno ancora un risultato finale, ordinate per plausibilità. L'orario pianificato serve per l'ordinamento, non viene usato per dedurre che una partita sia iniziata o terminata.
 
 Ordine proposto:
 
-1. gara prevista sul campo scansionato con orario più vicino;
-2. gare in ritardo previste su altri campi, ordinate dalla più vicina all'orario corrente;
-3. gare previste entro i successivi 90 minuti, ordinate per orario;
-4. altre gare della giornata non ancora iniziate;
-5. comando secondario **Mostra tutte** per le gare future fuori dalla finestra ordinaria.
+1. gara già confermata sul campo scansionato e ancora senza risultato;
+2. gara prevista sul campo scansionato con orario più vicino;
+3. gare in ritardo previste su altri campi, ordinate dalla più vicina all'orario corrente;
+4. gare previste entro i successivi 90 minuti, ordinate per orario;
+5. altre gare della giornata senza risultato;
+6. comando secondario **Mostra tutte** per le gare future fuori dalla finestra ordinaria.
 
 Ogni proposta mostra numero gara, categoria, squadre, orario previsto, campo previsto e motivo della priorità, per esempio **Prevista qui**, **In ritardo di 15 min** o **In programma tra 20 min**.
 
@@ -55,13 +56,19 @@ La conferma conserva il campo pianificato e registra separatamente il campo effe
 
 Una gara è selezionabile dal QR quando:
 
-- lo stato è `programmata` o `in attesa`;
 - non ha un risultato finale;
-- non è già stata avviata su un altro campo;
-- nessuna delle due squadre risulta impegnata in una gara in corso;
-- il campo scansionato non risulta occupato da un'altra gara in corso.
+- non è annullata;
+- appartiene alla giornata del torneo in corso, salvo l'uso del comando **Mostra tutte**.
 
-Se il campo risulta occupato, il sistema blocca la conferma e mostra la gara che lo sta utilizzando. Un amministratore può correggere lo stato della gara o forzare lo spostamento dall'area Gestione.
+Il sistema non prova a dedurre lo stato `in corso` dall'orario, perché non esiste un evento affidabile di inizio. L'evento certo di conclusione è l'inserimento del risultato finale, che rimuove automaticamente la gara dall'elenco QR.
+
+Le conferme QR precedenti vengono usate come segnale operativo, senza blocchi rigidi:
+
+- se la gara risulta già confermata su un altro campo, viene mostrato un avviso e la nuova conferma la trasferisce sul campo scansionato;
+- se sul campo scansionato risulta confermata un'altra gara ancora senza risultato, viene mostrato un avviso e l'utente può confermare comunque la nuova assegnazione;
+- se una squadra compare in un'altra gara senza risultato vicina nello stesso orario, viene mostrato un avviso di verifica, ma non viene imposto un blocco.
+
+Questo permette di gestire ritardi, risultati non ancora caricati e cambi campo senza richiedere l'intervento di un amministratore. La nuova conferma diventa l'assegnazione operativa attiva; la precedente resta nello storico.
 
 La conferma deve essere atomica: due telefoni non possono assegnare contemporaneamente gare diverse allo stesso campo.
 
@@ -80,8 +87,7 @@ In `matches`:
 
 - `scheduled_court`: campo pianificato;
 - `actual_court`: campo effettivo, inizialmente vuoto;
-- `status`: `scheduled`, `waiting`, `in_progress`, `completed`, `cancelled`;
-- `actual_start_at`: inizio effettivo;
+- `status`: `scheduled`, `completed`, `cancelled`; lo stato `completed` deriva dalla presenza di un risultato finale valido;
 - `scorekeeper_source_kind`: `home`, `away`, `team`, `rank`, `person`;
 - `scorekeeper_source_ref`: squadra, posizione o persona prevista;
 - `scorekeeper_name`: persona presente;
@@ -107,7 +113,7 @@ Le squadre o le posizioni `C1`, `C2`, `D3` usate come responsabili del referto n
 
 ### Sequenza di implementazione
 
-1. Migrazione del modello dati per campo effettivo, stato e responsabilità del referto.
+1. Migrazione del modello dati per campo effettivo, conclusione derivata dal risultato e responsabilità del referto.
 2. Adeguamento dell'area Gestione e dell'editor della partita.
 3. Generazione e stampa dei QR per campo.
 4. Pagina pubblica di selezione plausibile e conferma del refertista.
