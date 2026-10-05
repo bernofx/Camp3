@@ -39,7 +39,7 @@ function scheduleConflict(candidate:MatchRow,all:Map<string,MatchRow>,links:Map<
     if(other.gameId===candidate.gameId||!overlaps(candidate,other,duration))continue;
     if(candidate.court===other.court)return `Il campo ${candidate.court} è già occupato dalla gara ${other.gameId} in questa fascia oraria.`;
     if([...tokens].some(token=>matchTokens(other.gameId,combined,links).has(token)))return `Una squadra potrebbe essere impegnata anche nella gara ${other.gameId} nella stessa fascia oraria.`;
-    const people=[candidate.scorekeeper,candidate.referee,candidate.courtManager].map(person).filter(Boolean),otherPeople=[other.scorekeeper,other.referee,other.courtManager].map(person).filter(Boolean),busy=people.find(value=>otherPeople.includes(value));
+    const people=[candidate.referee,candidate.courtManager].map(person).filter(Boolean),otherPeople=[other.referee,other.courtManager].map(person).filter(Boolean),busy=people.find(value=>otherPeople.includes(value));
     if(busy)return `${busy} risulta già assegnato alla gara ${other.gameId} nella stessa fascia oraria.`;
   }return "";
 }

@@ -30,7 +30,7 @@ function checks(matches:Match[],duration:number,links:Link[],courts:Set<string>)
     const a=matches[i],b=matches[j];if(!a.date||!a.time||!a.court||!b.date||!b.time||!b.court||a.date!==b.date||start(a)>=start(b)+duration||start(b)>=start(a)+duration)continue;
     if(a.court===b.court)issues.push({level:"ERRORE",type:"Campo",message:`Gare ${a.gameId} e ${b.gameId}: sovrapposizione sul campo ${a.court}.`});
     if(intersect(participants(a),participants(b)))issues.push({level:"ERRORE",type:"Squadra",message:`Gare ${a.gameId} e ${b.gameId}: stessa squadra o posizione di classifica nella stessa fascia.`});
-    const peopleA=[a.scorekeeper,a.referee,a.courtManager].filter(assignedStaff),peopleB=[b.scorekeeper,b.referee,b.courtManager].filter(assignedStaff),busy=peopleA.find(name=>peopleB.some(other=>staffKey(other,b)===staffKey(name,a)));
+    const peopleA=[a.referee,a.courtManager].filter(assignedStaff),peopleB=[b.referee,b.courtManager].filter(assignedStaff),busy=peopleA.find(name=>peopleB.some(other=>staffKey(other,b)===staffKey(name,a)));
     if(busy)issues.push({level:"ERRORE",type:"Staff",message:`${busy}: assegnazione contemporanea alle gare ${a.gameId} e ${b.gameId}.`});
   }
   const byId=new Map(matches.map(match=>[match.gameId,match]));
