@@ -16,7 +16,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS tournament_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, category_code TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, UNIQUE(category_code, code))`,
   `CREATE TABLE IF NOT EXISTS teams (code TEXT PRIMARY KEY, name TEXT NOT NULL, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS courts (code TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
-  `CREATE TABLE IF NOT EXISTS tournament_days (code TEXT PRIMARY KEY, name TEXT NOT NULL, day_date TEXT NOT NULL UNIQUE, start_time TEXT NOT NULL DEFAULT '09:00', sort_order INTEGER NOT NULL DEFAULT 0)`,
+  `CREATE TABLE IF NOT EXISTS tournament_days (code TEXT PRIMARY KEY, name TEXT NOT NULL, day_date TEXT NOT NULL UNIQUE, start_time TEXT NOT NULL DEFAULT '09:00', end_time TEXT NOT NULL DEFAULT '23:59', sort_order INTEGER NOT NULL DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS tournament_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS staff (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, can_referee INTEGER NOT NULL DEFAULT 0, can_scorekeeper INTEGER NOT NULL DEFAULT 0, can_court_manager INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS matches (game_id TEXT PRIMARY KEY, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', phase TEXT NOT NULL DEFAULT 'girone', match_date TEXT NOT NULL, match_time TEXT NOT NULL, court TEXT NOT NULL DEFAULT '', home_ref TEXT NOT NULL, away_ref TEXT NOT NULL, scorekeeper TEXT NOT NULL DEFAULT '', referee TEXT NOT NULL DEFAULT '', court_manager TEXT NOT NULL DEFAULT '', result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'scheduled')`,
@@ -65,6 +65,8 @@ export async function ensureDatabase() {
         WHEN EXISTS(SELECT 1 FROM matches WHERE category_code=category_settings.category_code AND phase='fase-finale') THEN 'semifinals'
         ELSE 'final' END`).run();
     }
+    const tournamentDayColumns=await db.prepare("PRAGMA table_info(tournament_days)").all<{name:string}>();
+    if(!tournamentDayColumns.results.some(column=>column.name==="end_time"))await db.prepare("ALTER TABLE tournament_days ADD COLUMN end_time TEXT NOT NULL DEFAULT '23:59'").run();
     const infrastructure = [
       db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) VALUES('match_duration_minutes','70')"),
       db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) SELECT 'tournament_state',CASE WHEN EXISTS(SELECT 1 FROM tournament_settings WHERE key='plan_confirmed' AND value='1') THEN 'confirmed' ELSE 'planning' END"),

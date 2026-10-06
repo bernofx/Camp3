@@ -9,7 +9,7 @@ export async function GET() {
     db.prepare("SELECT id,category_code AS categoryCode,code,name,sort_order AS sortOrder FROM tournament_groups ORDER BY category_code,sort_order,code").all(),
     db.prepare("SELECT code,name,category_code AS categoryCode,group_code AS groupCode FROM teams WHERE active=1 ORDER BY category_code,group_code,name").all(),
     db.prepare("SELECT code,name,sort_order AS sortOrder FROM courts WHERE active=1 ORDER BY sort_order,code").all(),
-    db.prepare("SELECT code,name,day_date AS date,start_time AS startTime,sort_order AS sortOrder FROM tournament_days ORDER BY sort_order,day_date").all(),
+    db.prepare("SELECT code,name,day_date AS date,start_time AS startTime,end_time AS endTime,sort_order AS sortOrder FROM tournament_days ORDER BY sort_order,day_date").all(),
     db.prepare("SELECT id,name,can_referee AS canReferee,can_scorekeeper AS canScorekeeper,can_court_manager AS canCourtManager FROM staff WHERE active=1 ORDER BY name").all(),
     db.prepare("SELECT key,value FROM tournament_settings").all(),
     db.prepare(`SELECT game_id AS gameId,category_code AS category,group_code AS groupCode,phase,match_date AS date,match_time AS time,court,home_ref AS homeRef,away_ref AS awayRef,scorekeeper,referee,court_manager AS courtManager,result,set_1 AS set1,set_2 AS set2,set_3 AS set3,status FROM matches ORDER BY match_date,match_time,game_id`).all(),
