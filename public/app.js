@@ -18,6 +18,13 @@
   let toastTimer;
   let syncing = false;
   const selectionKey = "volleystars-v1-db-selections";
+  const themeDefaults={preset:"default",primary:"#11263f",secondary:"#193957",accent:"#ff6b57",background:"#f6f2e9",surface:"#ffffff",text:"#17202b",muted:"#68717c",line:"#dedbd3",typography:"classic",density:"comfortable",radius:"17",shadow:"soft"};
+  const themePresets={
+    default:{...themeDefaults,label:"Attuale"},
+    energy:{...themeDefaults,preset:"energy",primary:"#14213d",secondary:"#263d67",accent:"#f04e3e",background:"#f7f3ea",surface:"#ffffff",label:"Energia"},
+    ocean:{...themeDefaults,preset:"ocean",primary:"#073b4c",secondary:"#0b6175",accent:"#ef476f",background:"#eef8f7",surface:"#ffffff",typography:"modern",label:"Oceano"},
+    minimal:{...themeDefaults,preset:"minimal",primary:"#24282d",secondary:"#4d5964",accent:"#2b7a65",background:"#f3f5f4",surface:"#ffffff",text:"#202428",muted:"#626b72",line:"#d6dcda",typography:"modern",radius:"10",shadow:"none",label:"Minimal"}
+  };
   let qualificationGroups = {
     U13:{C:["131","132","133","134"],D:["135","136","137","138"]},
     U14:{C:["141","142","143","144"]},
@@ -31,6 +38,7 @@
   let plannerDayCode = "";
   let plannerDirty = false;
   let bulkStaffSelection = new Set();
+  let themePreviewDirty = false;
 
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -40,6 +48,14 @@
   const categoryColor=code=>categoriesCatalog.find(item=>item.code===code)?.color||"#dff4ea";
   const tournamentState=()=>settingsCatalog.tournament_state||"planning";
   const tint=(hex,alpha=.14)=>{const value=String(hex||"").replace("#","");if(!/^[0-9a-f]{6}$/i.test(value))return `rgba(223,244,234,${alpha})`;return `rgba(${parseInt(value.slice(0,2),16)},${parseInt(value.slice(2,4),16)},${parseInt(value.slice(4,6),16)},${alpha})`;};
+
+  function themeFromSettings(settings=settingsCatalog){return {preset:settings.ui_theme_preset||themeDefaults.preset,primary:settings.ui_primary||themeDefaults.primary,secondary:settings.ui_secondary||themeDefaults.secondary,accent:settings.ui_accent||themeDefaults.accent,background:settings.ui_background||themeDefaults.background,surface:settings.ui_surface||themeDefaults.surface,text:settings.ui_text||themeDefaults.text,muted:settings.ui_muted||themeDefaults.muted,line:settings.ui_line||themeDefaults.line,typography:settings.ui_typography||themeDefaults.typography,density:settings.ui_density||themeDefaults.density,radius:settings.ui_radius||themeDefaults.radius,shadow:settings.ui_shadow||themeDefaults.shadow};}
+  function applyTheme(theme){
+    const root=document.documentElement,fonts={classic:[`Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif`,`Georgia,serif`],modern:[`"Segoe UI",Inter,ui-sans-serif,system-ui,sans-serif`,`"Segoe UI",Inter,ui-sans-serif,system-ui,sans-serif`],rounded:[`"Trebuchet MS",Inter,ui-sans-serif,system-ui,sans-serif`,`"Trebuchet MS",Inter,ui-sans-serif,system-ui,sans-serif`]},font=fonts[theme.typography]||fonts.classic;
+    const radius=Math.min(28,Math.max(6,Number(theme.radius)||17));
+    [["--navy",theme.primary],["--navy-2",theme.secondary],["--coral",theme.accent],["--paper",theme.background],["--white",theme.surface],["--ink",theme.text],["--muted",theme.muted],["--line",theme.line],["--app-font",font[0]],["--display-font",font[1]],["--ui-radius",`${radius}px`],["--ui-radius-delta",`${radius-17}px`]].forEach(([name,value])=>root.style.setProperty(name,value));
+    root.dataset.uiDensity=theme.density||"comfortable";root.dataset.uiShadow=theme.shadow||"soft";
+  }
 
   function parseCsv(text) {
     const rows=[]; let row=[], cell="", quoted=false;
@@ -150,7 +166,7 @@
     if(!response.ok)throw new Error("Database non disponibile");
     const payload=await response.json();
     if(!payload.ok||!Array.isArray(payload.matches))throw new Error("Dati non validi");
-    categoriesCatalog=payload.categories||[];groupsCatalog=payload.groups||[];teamsCatalog=payload.teams||[];courtsCatalog=payload.courts||[];daysCatalog=payload.days||[];staffCatalog=payload.staff||[];settingsCatalog=payload.settings||{match_duration_minutes:"70",plan_confirmed:"0",tournament_state:"planning"};finalLinksCatalog=payload.finalLinks||[];
+    categoriesCatalog=payload.categories||[];groupsCatalog=payload.groups||[];teamsCatalog=payload.teams||[];courtsCatalog=payload.courts||[];daysCatalog=payload.days||[];staffCatalog=payload.staff||[];settingsCatalog=payload.settings||{match_duration_minutes:"70",plan_confirmed:"0",tournament_state:"planning"};finalLinksCatalog=payload.finalLinks||[];applyTheme(themeFromSettings(settingsCatalog));
     teamNames=Object.fromEntries(teamsCatalog.map(team=>[team.code,team.name]));
     qualificationGroups={};
     categoriesCatalog.forEach(category=>{
@@ -500,16 +516,27 @@
     return [...new Set(issues)];
   }
 
+  function themeFormValues(){const data=Object.fromEntries(new FormData($("themeForm")).entries());return {...themeDefaults,...data,radius:String(data.radius||themeDefaults.radius)};}
+  function renderThemePresets(active){$("themePresetList").innerHTML=Object.values(themePresets).map(theme=>`<button type="button" class="preset-card${active===theme.preset?" active":""}" data-theme-preset="${esc(theme.preset)}"><span class="preset-swatches"><i style="background:${esc(theme.primary)}"></i><i style="background:${esc(theme.accent)}"></i><i style="background:${esc(theme.background)}"></i></span><strong>${esc(theme.label)}</strong></button>`).join("");}
+  function fillThemeForm(theme,preview=true){const form=$("themeForm");Object.entries(theme).forEach(([name,value])=>{if(form.elements[name])form.elements[name].value=value;});$("themeRadiusValue").textContent=`${theme.radius} px`;renderThemePresets(theme.preset);if(preview)applyTheme(theme);}
+  function renderThemeEditor(){if(!currentUser||themePreviewDirty)return;fillThemeForm(themeFromSettings(settingsCatalog),false);}
+  async function saveTheme(action="save"){
+    const box=$("themeMessage");box.textContent=action==="reset"?"Ripristino dello stile attuale…":"Salvataggio dello stile…";
+    try{const payload=await apiPost("/api/admin/theme",action==="reset"?{action:"reset"}:{action:"save",theme:themeFormValues()});Object.entries(payload.theme||{}).forEach(([key,value])=>settingsCatalog[`ui_${key==="preset"?"theme_preset":key}`]=String(value));themePreviewDirty=false;fillThemeForm(payload.theme||themeDefaults);box.textContent=payload.message;}
+    catch(error){box.textContent=error.message;applyTheme(themeFromSettings(settingsCatalog));}
+  }
+
   function setAuth(user){
     currentUser=user?.role==="admin"?user:null;
     $("adminTab").hidden=!currentUser;
     $("groupsTab").hidden=!currentUser;
+    $("themeTab").hidden=!currentUser;
     updatePlanVisibility();
     document.body.classList.toggle("admin-visible",Boolean(currentUser));
     $("loginButton").textContent=currentUser?`Esci · ${currentUser.username}`:"Accesso admin";
-    if(!currentUser&&[$("adminView"),$("groupsView"),$("plannerView")].some(view=>view.classList.contains("active"))){document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));$("agendaTab").classList.add("active");$("agendaView").classList.add("active");}
+    if(!currentUser&&[$("adminView"),$("groupsView"),$("plannerView"),$("themeView")].some(view=>view.classList.contains("active"))){document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));$("agendaTab").classList.add("active");$("agendaView").classList.add("active");}
     renderAgenda();renderTeams();
-    if(currentUser){renderAdmin();renderGroupPlanner();}
+    if(currentUser){renderAdmin();renderGroupPlanner();renderThemeEditor();}
   }
 
   async function loadSession(){
@@ -631,7 +658,7 @@
     try{const live=await fetchLiveMatches();mergeLive(live);populateCategorySelectors();populateTeams();notices=await noticeRequest;const changes=cached?.matches?changedResults(cached.matches,matches):[];localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),matches,notices,standings:sheetStandings}));setSync("live",`Aggiornato ora · ${config.label}`);showResultToast(changes);}
     catch(error){notices=await noticeRequest;if(cached?.matches){matches=cached.matches;sheetStandings=cached.standings||{};setSync("error",`Offline · dati salvati ${new Date(cached.at).toLocaleString("it-IT")}`);}else setSync("error",`Calendario offline · risultati non sincronizzati (${config.label})`);}
     finally{syncing=false;}
-    renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();if(currentUser){renderAdmin();renderGroupPlanner();}
+    renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();if(currentUser){renderAdmin();renderGroupPlanner();renderThemeEditor();}
   }
 
   $("environmentInfo").textContent=`Configurazione attiva: ${config.label}. Database interno D1.`;
@@ -645,6 +672,7 @@
     const add=event.target.closest("[data-planner-add]");if(add){plannerAdd(add.dataset.plannerAdd);return;}
     const remove=event.target.closest("[data-planner-remove]");if(remove){plannerRemove(remove.dataset.plannerRemove);return;}
     const move=event.target.closest("[data-planner-move]");if(move){plannerMove(move.dataset.game,move.dataset.plannerMove);return;}
+    const preset=event.target.closest("[data-theme-preset]");if(preset){themePreviewDirty=true;fillThemeForm(themePresets[preset.dataset.themePreset]||themeDefaults);$("themeMessage").textContent="Anteprima applicata. Salva per renderla visibile a tutti.";return;}
     const closer=event.target.closest("[data-close-dialog]");if(closer){$(closer.dataset.closeDialog).close();return;}
     const card=event.target.closest(".match-card");if(card)toggleMatchCard(card);
   });
@@ -663,9 +691,11 @@
   $("plannerDay").addEventListener("change",()=>{plannerDirty=false;plannerDayCode=$("plannerDay").value;renderPlanner(true);});$("savePlanner").addEventListener("click",savePlanner);$("confirmPlan").addEventListener("click",confirmPlan);$("autoAllocate").addEventListener("click",autoAllocate);
   $("reopenPlan").addEventListener("click",()=>{if(confirm("Riaprire la pianificazione? La Classifica verrà nascosta finché il piano non sarà riconfermato."))setTournamentState("planning");});$("startTournament").addEventListener("click",()=>setTournamentState("live"));$("closeTournament").addEventListener("click",()=>{if(confirm("Concludere il torneo e bloccare tutte le modifiche?"))setTournamentState("closed");});$("reopenTournament").addEventListener("click",()=>{if(confirm("Riaprire il torneo per correggere i risultati?"))setTournamentState("live");});
   $("bulkSelectAll").addEventListener("click",()=>{document.querySelectorAll("[data-bulk-game]").forEach(input=>{input.checked=true;bulkStaffSelection.add(input.dataset.bulkGame);});});$("bulkSelectNone").addEventListener("click",()=>{bulkStaffSelection.clear();document.querySelectorAll("[data-bulk-game]").forEach(input=>input.checked=false);});$("bulkStaffForm").addEventListener("submit",event=>{event.preventDefault();saveBulkStaff(event.currentTarget);});
+  $("themeForm").addEventListener("input",event=>{const form=event.currentTarget;themePreviewDirty=true;if(event.target.name!=="preset")form.elements.preset.value="custom";const theme=themeFormValues();$("themeRadiusValue").textContent=`${theme.radius} px`;renderThemePresets(theme.preset);applyTheme(theme);$("themeMessage").textContent="Anteprima locale non ancora salvata.";});
+  $("themeForm").addEventListener("submit",event=>{event.preventDefault();saveTheme("save");});$("resetTheme").addEventListener("click",()=>saveTheme("reset"));$("reloadSavedTheme").addEventListener("click",()=>{themePreviewDirty=false;fillThemeForm(themeFromSettings(settingsCatalog));$("themeMessage").textContent="Stile salvato ricaricato.";});
   $("shiftForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries()),box=$("plannerMessage");try{const payload=await apiPost("/api/admin/planner",{action:"shift",dayCode:$("plannerDay").value,court:plannerSelectedCourt,fromGameId:data.fromGameId,deltaMinutes:Number(data.deltaMinutes)});box.textContent=payload.message;plannerDirty=false;await sync();renderPlanner(true);}catch(error){box.textContent=error.message;}});
   $("clearMatches").addEventListener("click",async()=>{const confirmation=prompt("Questa operazione elimina tutte le gare, i risultati e gli accoppiamenti. Digita SVUOTA per continuare.");if(confirmation!=="SVUOTA")return;try{await apiPost("/api/admin/planner",{action:"clearAll",confirmation});plannerDirty=false;await sync();alert("Tutte le gare sono state eliminate.");}catch(error){alert(error.message);}});
-  populateTeams();restoreSelections();renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();loadSession();sync();setInterval(sync,60000);
+  applyTheme(themeDefaults);populateTeams();restoreSelections();renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();loadSession();sync();setInterval(sync,60000);
   if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 
   window.VolleyStarsTestApi={parseCsv,parseSheetCsv,parseSheetRows,parseGvizTable,parseNoticeTable,normalizeMatchup,resultOutcome,changedResults,matchScore,rankGroup,resolveQualificationText,resolvedMatchup};
