@@ -131,6 +131,9 @@
         <div><p class="eyebrow">AMMINISTRAZIONE</p><h2>Gestione torneo</h2></div>
       </div>
       <p class="standings-note">Configura struttura, squadre e calendario. Le modifiche sono salvate nel database della v1.</p>
+      <ol class="admin-flow" aria-label="Flusso di configurazione">
+        <li><strong>1</strong><span>Categorie e squadre</span></li><li><strong>2</strong><span>Gironi</span></li><li><strong>3</strong><span>Genera tutte le gare</span></li><li><strong>4</strong><span>Pianifica e conferma</span></li>
+      </ol>
       <a class="excel-export" href="/api/export" download>Scarica Excel di controllo</a>
       <div class="admin-sections">
         <details class="admin-card" open><summary>Campi e durata</summary>
@@ -145,21 +148,22 @@
         <details class="admin-card"><summary>Categorie</summary>
           <form id="categoryForm" class="admin-form"><input name="code" placeholder="Codice categoria (U13)" required><input name="name" placeholder="Nome" required><label>Colore <input name="color" type="color" value="#dff4ea"></label><input name="sortOrder" type="number" placeholder="Ordine"><label class="wide-field">Ammissione alla fase finale<select name="admissionMethod" required><option value="top2_each">Prime 2 di ogni girone</option><option value="winners_plus_best_second">Vincitrici + migliore seconda (3 gironi)</option><option value="winners_round_robin">Girone finale tra le vincitrici</option></select></label><p id="admissionAdvice" class="admin-inline-help wide-field"></p><button type="submit">Salva categoria</button></form><div id="categoryAdminList" class="admin-list"></div>
         </details>
-        <details class="admin-card"><summary>Gironi</summary>
-          <form id="groupForm" class="admin-form"><input name="code" type="hidden"><select name="categoryCode" required></select><input name="name" placeholder="Nome girone (es. Girone A)" required><input name="sortOrder" type="number" placeholder="Ordine"><button type="submit">Salva girone</button></form><div id="groupAdminList" class="admin-list"></div>
-        </details>
         <details class="admin-card"><summary>Squadre</summary>
           <p class="admin-help">Inserisci qui la squadra e la categoria. L’assegnazione al girone avviene nel tab Gironi.</p>
           <form id="teamForm" class="admin-form"><input name="code" type="hidden"><input name="name" placeholder="Nome squadra" required><label>Categoria<select name="categoryCode" required></select></label><button type="submit">Salva squadra</button></form><div id="teamAdminList" class="admin-list"></div>
+        </details>
+        <details class="admin-card"><summary>Gironi</summary>
+          <p class="admin-help">Definisci i contenitori dei gironi. Per assegnare le squadre usa poi il tab Gironi.</p>
+          <form id="groupForm" class="admin-form"><input name="code" type="hidden"><select name="categoryCode" required></select><input name="name" placeholder="Nome girone (es. Girone A)" required><input name="sortOrder" type="number" placeholder="Ordine"><button type="submit">Salva girone</button></form><div id="groupAdminList" class="admin-list"></div>
         </details>
         <details class="admin-card"><summary>Staff</summary>
           <p class="admin-help">Definisci qui chi può essere assegnato alle partite e con quali ruoli.</p>
           <form id="staffForm" class="admin-form"><input name="id" type="hidden"><input name="name" placeholder="Nome o sigla" required><label><input name="canReferee" type="checkbox" value="1"> Arbitro</label><label><input name="canScorekeeper" type="checkbox" value="1"> Refertista</label><label><input name="canCourtManager" type="checkbox" value="1"> Responsabile di campo</label><button type="submit">Salva persona</button></form><div id="staffAdminList" class="admin-list"></div>
         </details>
-        <details class="admin-card" open><summary>Generazione e allocazione partite</summary>
+        <details class="admin-card" open><summary>Generazione automatica delle gare</summary>
           <div id="configurationStatus" class="configuration-status"></div>
-          <p class="admin-help">Scegli la categoria e genera le gare mancanti. Il sistema crea numero gara e accoppiamenti; le gare restano bozze finché non assegni campo, data e ora.</p>
-          <form id="generationForm" class="admin-form"><label>Categoria<select name="categoryCode" required></select></label><button type="button" data-generate="groups">Genera gare dei gironi</button><button type="button" data-generate="finals">Genera fase finale</button><p id="generationMessage" class="admin-inline-help wide-field"></p></form>
+          <p class="admin-help">Dopo aver assegnato tutte le squadre ai gironi, un solo comando crea gli abbinamenti dei gironi e l’intera fase finale. Se aggiungi una nuova squadra, vengono create soltanto le gare mancanti.</p>
+          <form id="generationForm" class="admin-form"><label>Categoria<select name="categoryCode" required></select></label><button type="button" data-generate="all">Genera tutte le gare</button><p id="generationMessage" class="admin-inline-help wide-field"></p></form>
 
 
         </details>
@@ -170,15 +174,15 @@
 
     <section id="groupsView" class="view" aria-labelledby="groupsTab">
       <div class="section-heading stacked"><div><p class="eyebrow">COMPOSIZIONE</p><h2>Assegna le squadre ai gironi</h2></div><label class="team-picker">Categoria<select id="groupPlannerCategory"></select></label></div>
-      <p class="standings-note">Trascina una squadra nella tabella desiderata. Da telefono puoi usare il menu presente su ogni squadra.</p>
+      <p class="standings-note">Trascina una squadra nella tabella desiderata. Da telefono usa il menu compatto. Una squadra appena aggiunta può essere assegnata anche se esistono già gare; per spostare una squadra già assegnata devi prima svuotare le gare.</p>
       <div id="groupPlannerStatus" class="configuration-status"></div>
       <div id="groupPlannerBoards" class="group-planner-boards"></div>
     </section>
 
     <section id="plannerView" class="view" aria-labelledby="plannerTab">
       <div class="section-heading stacked"><div><p class="eyebrow">PIANIFICAZIONE</p><h2>Alloca gare, campi e orari</h2></div></div>
-      <p class="standings-note">Seleziona la giornata, apri un campo e costruisci la sequenza delle gare. Gli orari vengono calcolati dalla durata configurata.</p>
-      <section class="planner-shell"><div class="planner-toolbar"><label>Giornata<select id="plannerDay"></select></label><span id="plannerHint">Apri un campo e aggiungi le gare nell’ordine di svolgimento.</span></div><div id="plannerCourts" class="planner-courts"></div><div class="planner-layout"><div><h4>Gare da allocare</h4><div id="plannerPool" class="planner-pool"></div></div><div id="plannerLane" class="planner-lane"></div></div><div class="planner-actions"><button id="savePlanner" type="button">Salva pianificazione</button><button id="confirmPlan" class="secondary-action" type="button">Conferma piano</button><span id="plannerMessage"></span></div><form id="shiftForm" class="shift-form"><strong>Sposta una serie di gare</strong><label>Da gara<select name="fromGameId"></select></label><label>Minuti<input name="deltaMinutes" type="number" min="-360" max="360" step="5" value="60" required></label><button type="submit">Sposta questa e le successive</button></form></section>
+      <p class="standings-note">Puoi creare una proposta automatica e poi rifinirla a mano. Il sistema distribuisce le categorie sugli stessi campi e cerca di lasciare una pausa alle squadre, senza programmare tre gare consecutive.</p>
+      <section class="planner-shell"><div class="auto-plan-card"><div><strong>Proposta automatica</strong><span>Alloca solo le gare ancora in bozza, mantenendo quelle già programmate.</span></div><button id="autoAllocate" type="button">Alloca automaticamente</button></div><div class="planner-toolbar"><label>Giornata<select id="plannerDay"></select></label><span id="plannerHint">Apri un campo e aggiungi le gare nell’ordine di svolgimento.</span></div><div id="plannerCourts" class="planner-courts"></div><div class="planner-layout"><div><h4>Gare da allocare</h4><div id="plannerPool" class="planner-pool"></div></div><div id="plannerLane" class="planner-lane"></div></div><div class="planner-actions"><button id="savePlanner" type="button">Salva pianificazione</button><button id="confirmPlan" class="secondary-action" type="button">Conferma piano</button><span id="plannerMessage"></span></div><details class="schedule-adjustment"><summary>Pausa o ritardo su questo campo</summary><p>Serve, per esempio, per inserire la pausa pranzo o recuperare un ritardo: scegli la prima gara coinvolta e il sistema sposta dello stesso numero di minuti quella gara e tutte le successive sul campo selezionato.</p><form id="shiftForm" class="shift-form"><label>Prima gara da spostare<select name="fromGameId"></select></label><label>Minuti<input name="deltaMinutes" type="number" min="-360" max="360" step="5" value="60" required></label><button type="submit">Applica al blocco di gare</button></form></details></section>
       <details id="allocationDetails" class="precise-allocation"><summary>Dettagli gara: data, ora, campo e staff</summary><p class="admin-help">Il refertista è facoltativo e può essere indicato in seguito tramite QR o manualmente. Anche arbitro e responsabile possono restare “Da definire” durante la pianificazione.</p><form id="allocationForm" class="admin-form match-admin-form"><label class="wide-field">Gara<select name="gameId" required></select></label><label>Data (gg/MM/aaaa)<input name="date" inputmode="numeric" placeholder="31/05/2026" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" required></label><label>Ora<input name="time" type="time" required></label><label>Campo<select name="court" required></select></label><label>Refertista (facoltativo)<select name="scorekeeper"></select></label><label>Arbitro<select name="referee"></select></label><label>Responsabile campo<select name="courtManager"></select></label><button type="submit">Salva dettagli gara</button></form></details><div id="matchAdminList" class="admin-list match-admin-list"></div>
     </section>
     <section id="infoView" class="view" aria-labelledby="infoTab">

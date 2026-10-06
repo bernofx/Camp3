@@ -137,7 +137,9 @@ Le squadre o le posizioni `C1`, `C2`, `D3` usate come responsabili del referto n
 
 L’allocazione ha un tab amministrativo dedicato, **Pianifica**, separato dalle anagrafiche di **Gestione**. L’amministratore sceglie una giornata configurata come G1, G2 e così via, poi apre un campo alla volta. Le gare ancora da allocare possono essere trascinate nella corsia del campo o aggiunte con un pulsante, utile anche da telefono.
 
-L’ordine verticale determina gli orari a partire dall’ora iniziale della giornata e dalla durata indicativa della gara. Prima del salvataggio il sistema controlla sovrapposizioni di campo, squadre, arbitri e responsabili di campo, comprese le dipendenze tra semifinali e finali. Una funzione separata sposta una gara e tutte le successive dello stesso campo di un numero di minuti positivo o negativo, così da inserire pause o assorbire ritardi.
+L’ordine verticale determina gli orari a partire dall’ora iniziale della giornata e dalla durata indicativa della gara. Prima del salvataggio il sistema controlla sovrapposizioni di campo, squadre, arbitri e responsabili di campo, comprese le dipendenze tra semifinali e finali. Una funzione separata, presentata come **Pausa o ritardo sul campo**, sposta una gara e tutte le successive dello stesso campo di un numero di minuti positivo o negativo, così da inserire pause o assorbire ritardi.
+
+Il pianificatore dispone anche di una proposta automatica per le sole gare ancora in bozza. Mantiene le allocazioni già salvate, assegna a ogni categoria un campo preferenziale, distribuisce per quanto possibile le gare della categoria sulle giornate disponibili e penalizza due impegni consecutivi della stessa squadra. Due gare consecutive restano ammesse quando necessario; tre gare consecutive vengono sempre escluse. La proposta rispetta inoltre la sequenza delle dipendenze della fase finale e deve essere controllata e confermata dall’amministratore.
 
 Le gare generate restano in bozza finché non ricevono giornata, campo e orario. La configurazione è completa soltanto quando ogni gara è allocata e tutti i controlli sono superati. È disponibile anche un comando protetto dalla conferma testuale `SVUOTA` che elimina gare, risultati e collegamenti delle fasi finali, conservando categorie, gironi, squadre, campi, giornate e staff per una nuova generazione.
 
@@ -145,7 +147,9 @@ Le schede di gare e squadre usano una tinta leggera della categoria. Nelle viste
 
 ## Composizione dei gironi e conferma del piano
 
-La creazione di una squadra richiede soltanto nome e categoria. L’amministratore compone successivamente i gironi nel tab dedicato **Gironi**, trascinando le squadre tra “Non assegnate” e le tabelle dei gironi disponibili; un menu su ogni squadra offre la stessa funzione sui dispositivi touch. La composizione viene bloccata appena esiste una gara: per rifarla occorre usare lo svuotamento completo e rigenerare il calendario.
+La creazione di una squadra richiede soltanto nome e categoria. L’amministratore compone successivamente i gironi nel tab dedicato **Gironi**, trascinando le squadre tra “Non assegnate” e le tabelle dei gironi disponibili; un menu compatto su ogni squadra offre la stessa funzione sui dispositivi touch. Quando esistono gare, le squadre già assegnate sono protette: per spostarle o rimuoverle dal girone occorre svuotare le gare. Una squadra appena aggiunta e ancora non assegnata può invece essere collocata in un girone e il generatore crea soltanto i nuovi abbinamenti mancanti.
+
+Il flusso amministrativo è: categorie e squadre, definizione e composizione dei gironi, generazione completa, pianificazione e conferma. Il comando unico **Genera tutte le gare** crea prima il girone all’italiana e poi la fase finale compatibile con la modalità di ammissione della categoria.
 
 La Classifica diventa pubblica soltanto dopo la conferma del piano. Ogni modifica strutturale o temporale annulla la conferma; per confermare nuovamente il sistema richiede gare presenti e completamente allocate, nessuna squadra senza girone e nessun conflitto di calendario.
 
