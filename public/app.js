@@ -171,7 +171,7 @@
         section.finals.push({id:link.targetGameId,order:Number(link.targetOrder)||0});
       }
     });
-    Object.values(finalBrackets).forEach(sections=>{sections.sort((a,b)=>a.sectionOrder-b.sectionOrder);sections.forEach(section=>{Object.keys(section.early).forEach(key=>{section.early[key].sort((a,b)=>a.order-b.order);section.early[key]=section.early[key].map(item=>item.id);});section.finals.sort((a,b)=>a.order-b.order);section.finals=section.finals.map(item=>item.id);});});
+    Object.values(finalBrackets).forEach(sections=>{sections.sort((a,b)=>a.sectionOrder-b.sectionOrder);sections.forEach(section=>{Object.keys(section.early).forEach(key=>{section.early[key].sort((a,b)=>a.order-b.order);section.early[key]=[...new Set(section.early[key].map(item=>item.id))];});section.semis=[...new Set(section.semis)];section.finals.sort((a,b)=>a.order-b.order);section.finals=[...new Set(section.finals.map(item=>item.id))];});});
     sheetStandings={};
     matchesCatalog=payload.matches.map(match=>({category:match.category,date:match.date,time:match.time,gameId:match.gameId,court:match.court,matchup:match.awayRef?`${match.homeRef} - ${match.awayRef}`:match.homeRef,scorekeeper:match.scorekeeper,referee:match.referee,courtManager:match.courtManager,result:match.result,sets:[match.set1||"",match.set2||"",match.set3||""],phase:match.phase,status:match.status,groupCode:match.groupCode}));
     updatePlanVisibility();
