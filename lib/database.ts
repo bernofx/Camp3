@@ -62,7 +62,6 @@ export async function ensureDatabase() {
       ["0416","U17","Dal 5° all’8° posto",2,2,"loser","0412","loser","0413"], ["0417","U17","Dal 5° all’8° posto",2,1,"winner","0412","winner","0413"],
       ["0418","U17","Titolo e podio",1,2,"loser","0414","loser","0415"], ["0419","U17","Titolo e podio",1,1,"winner","0414","winner","0415"],
     ];
-    infrastructure.push(...links.map(item=>db.prepare(`INSERT OR IGNORE INTO final_links(target_game_id,category_code,section_title,section_order,target_order,home_kind,home_ref,away_kind,away_ref) VALUES(?,?,?,?,?,?,?,?,?)`).bind(...item)));
     const staffRoles=new Map<string,{referee:number;scorekeeper:number}>();
     for(const match of seed.matches){
       if(match.referee){const role=staffRoles.get(match.referee)||{referee:0,scorekeeper:0};role.referee=1;staffRoles.set(match.referee,role);}
@@ -70,6 +69,10 @@ export async function ensureDatabase() {
     }
     infrastructure.push(...[...staffRoles.entries()].map(([name,roles])=>db.prepare("INSERT OR IGNORE INTO staff(name,can_referee,can_scorekeeper,can_court_manager,active) VALUES(?,?,?,?,1)").bind(name,roles.referee,roles.scorekeeper,0)));
     await db.batch(infrastructure);
+    await db.prepare(`DELETE FROM final_links
+      WHERE target_game_id NOT IN (SELECT game_id FROM matches)
+         OR (home_kind IN ('winner','loser') AND home_ref NOT IN (SELECT game_id FROM matches))
+         OR (away_kind IN ('winner','loser') AND away_ref NOT IN (SELECT game_id FROM matches))`).run();
     await db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) SELECT 'plan_confirmed',CASE WHEN EXISTS(SELECT 1 FROM matches) THEN '1' ELSE '0' END").run();
     await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
     const dayCount=await db.prepare("SELECT COUNT(*) AS count FROM tournament_days").first<{count:number}>();
@@ -91,6 +94,7 @@ export async function ensureDatabase() {
       const phase = /^FINALE/i.test(match.matchup) ? "finale" : /[CD][1-4]/.test(match.matchup) ? "fase-finale" : "girone";
       seedStatements.push(db.prepare(`INSERT OR IGNORE INTO matches(game_id,category_code,group_code,phase,match_date,match_time,court,home_ref,away_ref,scorekeeper,referee,court_manager,result,set_1,set_2,set_3,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(match.gameId,match.category,"",phase,match.date,match.time,match.court,home,away,match.scorekeeper,match.referee,"",match.result,match.sets[0]||"",match.sets[1]||"",match.sets[2]||"",match.result?"completed":"scheduled"));
     }
+    seedStatements.push(...links.map(item=>db.prepare(`INSERT OR IGNORE INTO final_links(target_game_id,category_code,section_title,section_order,target_order,home_kind,home_ref,away_kind,away_ref) VALUES(?,?,?,?,?,?,?,?,?)`).bind(...item)));
     await db.batch(seedStatements);
     await db.prepare("UPDATE tournament_settings SET value='1' WHERE key='plan_confirmed'").run();
     await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
