@@ -12,7 +12,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS categories (code TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#dff4ea', sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
-  `CREATE TABLE IF NOT EXISTS category_settings (category_code TEXT PRIMARY KEY, admission_method TEXT NOT NULL DEFAULT 'top2_each')`,
+  `CREATE TABLE IF NOT EXISTS category_settings (category_code TEXT PRIMARY KEY, admission_method TEXT NOT NULL DEFAULT 'top2_each', placement_mode TEXT NOT NULL DEFAULT 'top2', entry_round TEXT NOT NULL DEFAULT 'semifinals')`,
   `CREATE TABLE IF NOT EXISTS tournament_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, category_code TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, UNIQUE(category_code, code))`,
   `CREATE TABLE IF NOT EXISTS teams (code TEXT PRIMARY KEY, name TEXT NOT NULL, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS courts (code TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
@@ -49,6 +49,22 @@ export async function ensureDatabase() {
   ready ??= (async () => {
     const db = database();
     await db.batch(schema.map(statement => db.prepare(statement)));
+    const categorySettingColumns=await db.prepare("PRAGMA table_info(category_settings)").all<{name:string}>();
+    if(!categorySettingColumns.results.some(column=>column.name==="placement_mode")){
+      await db.prepare("ALTER TABLE category_settings ADD COLUMN placement_mode TEXT NOT NULL DEFAULT 'top2'").run();
+      await db.prepare(`UPDATE category_settings SET placement_mode=CASE
+        WHEN EXISTS(SELECT 1 FROM matches WHERE category_code=category_settings.category_code AND UPPER(home_ref) LIKE '%7°%8°%') THEN 'top8'
+        WHEN EXISTS(SELECT 1 FROM matches WHERE category_code=category_settings.category_code AND UPPER(home_ref) LIKE '%3°%4°%') THEN 'top4'
+        ELSE 'top2' END`).run();
+    }
+    if(!categorySettingColumns.results.some(column=>column.name==="entry_round")){
+      await db.prepare("ALTER TABLE category_settings ADD COLUMN entry_round TEXT NOT NULL DEFAULT 'semifinals'").run();
+      await db.prepare(`UPDATE category_settings SET entry_round=CASE
+        WHEN EXISTS(SELECT 1 FROM matches WHERE category_code=category_settings.category_code AND phase='ottavi') THEN 'round_of_16'
+        WHEN EXISTS(SELECT 1 FROM matches WHERE category_code=category_settings.category_code AND phase='quarti') THEN 'quarterfinals'
+        WHEN EXISTS(SELECT 1 FROM matches WHERE category_code=category_settings.category_code AND phase='fase-finale') THEN 'semifinals'
+        ELSE 'final' END`).run();
+    }
     const infrastructure = [
       db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) VALUES('match_duration_minutes','70')"),
       ...["1","2","3","4","5"].map((code,index)=>db.prepare("INSERT OR IGNORE INTO courts(code,name,sort_order,active) VALUES(?,?,?,1)").bind(code,`Campo ${code}`,index+1)),
@@ -74,7 +90,7 @@ export async function ensureDatabase() {
          OR (home_kind IN ('winner','loser') AND home_ref NOT IN (SELECT game_id FROM matches))
          OR (away_kind IN ('winner','loser') AND away_ref NOT IN (SELECT game_id FROM matches))`).run();
     await db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) SELECT 'plan_confirmed',CASE WHEN EXISTS(SELECT 1 FROM matches) THEN '1' ELSE '0' END").run();
-    await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
+    await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method,placement_mode,entry_round) SELECT code,'top2_each','top2','semifinals' FROM categories").run();
     const dayCount=await db.prepare("SELECT COUNT(*) AS count FROM tournament_days").first<{count:number}>();
     if(!Number(dayCount?.count||0)){const dates=await db.prepare("SELECT DISTINCT match_date AS date FROM matches WHERE match_date<>'' ORDER BY match_date").all<{date:string}>();if(dates.results.length)await db.batch(dates.results.map((item,index)=>db.prepare("INSERT OR IGNORE INTO tournament_days(code,name,day_date,start_time,sort_order) VALUES(?,?,?,?,?)").bind(`G${index+1}`,`G${index+1}`,item.date,"09:00",index+1)));}
     const count = await db.prepare("SELECT COUNT(*) AS count FROM categories").first<{count:number}>();
@@ -97,7 +113,7 @@ export async function ensureDatabase() {
     seedStatements.push(...links.map(item=>db.prepare(`INSERT OR IGNORE INTO final_links(target_game_id,category_code,section_title,section_order,target_order,home_kind,home_ref,away_kind,away_ref) VALUES(?,?,?,?,?,?,?,?,?)`).bind(...item)));
     await db.batch(seedStatements);
     await db.prepare("UPDATE tournament_settings SET value='1' WHERE key='plan_confirmed'").run();
-    await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method) SELECT code,'top2_each' FROM categories").run();
+    await db.prepare("INSERT OR IGNORE INTO category_settings(category_code,admission_method,placement_mode,entry_round) SELECT code,'top2_each','top2','semifinals' FROM categories").run();
     const dates=await db.prepare("SELECT DISTINCT match_date AS date FROM matches WHERE match_date<>'' ORDER BY match_date").all<{date:string}>();if(dates.results.length)await db.batch(dates.results.map((item,index)=>db.prepare("INSERT OR IGNORE INTO tournament_days(code,name,day_date,start_time,sort_order) VALUES(?,?,?,?,?)").bind(`G${index+1}`,`G${index+1}`,item.date,"09:00",index+1)));
   })();
   return ready;

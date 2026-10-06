@@ -160,13 +160,17 @@
     finalFlows={};finalBrackets={};const phaseByGame=new Map(payload.matches.map(item=>[item.gameId,item.phase]));
     finalLinksCatalog.forEach(link=>{
       (finalFlows[link.categoryCode]??={})[link.targetGameId]={home:[link.homeKind,link.homeRef],away:[link.awayKind,link.awayRef]};
-      if(phaseByGame.get(link.targetGameId)!=="finale")return;
       const sections=finalBrackets[link.categoryCode]??=[];let section=sections.find(item=>item.title===link.sectionTitle);
-      if(!section){section={title:link.sectionTitle,sectionOrder:Number(link.sectionOrder)||0,semis:[],finals:[]};sections.push(section);finalBrackets[link.categoryCode]=sections;}
-      [[link.homeKind,link.homeRef],[link.awayKind,link.awayRef]].forEach(([kind,ref])=>{if((kind==="winner"||kind==="loser")&&!section.semis.includes(ref))section.semis.push(ref);});
-      section.finals.push({id:link.targetGameId,order:Number(link.targetOrder)||0});
+      if(!section){section={title:link.sectionTitle,sectionOrder:Number(link.sectionOrder)||0,early:{ottavi:[],quarti:[]},semis:[],finals:[]};sections.push(section);finalBrackets[link.categoryCode]=sections;}
+      const phase=phaseByGame.get(link.targetGameId);
+      if(phase==="ottavi"||phase==="quarti")section.early[phase].push({id:link.targetGameId,order:Number(link.targetOrder)||0});
+      else if(phase==="fase-finale")section.semis.push(link.targetGameId);
+      else if(phase==="finale"){
+        [[link.homeKind,link.homeRef],[link.awayKind,link.awayRef]].forEach(([kind,ref])=>{if((kind==="winner"||kind==="loser")&&phaseByGame.get(ref)==="fase-finale"&&!section.semis.includes(ref))section.semis.push(ref);});
+        section.finals.push({id:link.targetGameId,order:Number(link.targetOrder)||0});
+      }
     });
-    Object.values(finalBrackets).forEach(sections=>{sections.sort((a,b)=>a.sectionOrder-b.sectionOrder);sections.forEach(section=>{section.finals.sort((a,b)=>a.order-b.order);section.finals=section.finals.map(item=>item.id);});});
+    Object.values(finalBrackets).forEach(sections=>{sections.sort((a,b)=>a.sectionOrder-b.sectionOrder);sections.forEach(section=>{Object.keys(section.early).forEach(key=>{section.early[key].sort((a,b)=>a.order-b.order);section.early[key]=section.early[key].map(item=>item.id);});section.finals.sort((a,b)=>a.order-b.order);section.finals=section.finals.map(item=>item.id);});});
     sheetStandings={};
     matchesCatalog=payload.matches.map(match=>({category:match.category,date:match.date,time:match.time,gameId:match.gameId,court:match.court,matchup:match.awayRef?`${match.homeRef} - ${match.awayRef}`:match.homeRef,scorekeeper:match.scorekeeper,referee:match.referee,courtManager:match.courtManager,result:match.result,sets:[match.set1||"",match.set2||"",match.set3||""],phase:match.phase,status:match.status,groupCode:match.groupCode}));
     updatePlanVisibility();
@@ -370,12 +374,13 @@
     $("finalsView").style.backgroundColor=tint(categoryColor(category),.13);
     const sections=finalBrackets[category]||[];
     const bracket=sections.map(section=>{
+      const early=[["Ottavi","Ottavo",section.early?.ottavi||[]],["Quarti","Quarto",section.early?.quarti||[]]].filter(([,singular,ids])=>ids.length).map(([label,singular,ids])=>`<div class="bracket-early-round"><h4>${label}</h4><div>${ids.map(id=>bracketMatch(id,singular)).join("")}</div></div>`).join("");
       const semis=section.semis.map(id=>bracketMatch(id,"Semifinale")).join("");
       const finals=section.finals.map(id=>bracketMatch(id,finalLabel(matches.find(match=>match.gameId===id)))).join("");
       const titleFinal=section.finals.find(id=>/FINALE\s+1°\s*-\s*2°/i.test(matches.find(match=>match.gameId===id)?.matchup||""));
       const championCode=titleFinal&&stageParticipant(titleFinal,"winner",category);
       const champion=championCode?`<div class="champion-banner"><span aria-hidden="true">🏆</span><div><small>Campione ${esc(category)}</small><strong>${esc(teamNames[championCode]||championCode)}</strong></div></div>`:"";
-      return `<section class="bracket-section"><h3>${esc(section.title)}</h3>${champion}<div class="bracket-headings"><span>Semifinali</span><span>Finali</span></div><div class="bracket-grid"><div class="bracket-round">${semis}</div><div class="bracket-lines" aria-hidden="true"><i></i></div><div class="bracket-round">${finals}</div></div></section>`;
+      return `<section class="bracket-section"><h3>${esc(section.title)}</h3>${champion}${early?`<div class="bracket-early">${early}</div>`:""}<div class="bracket-headings"><span>Semifinali</span><span>Finali</span></div><div class="bracket-grid"><div class="bracket-round">${semis}</div><div class="bracket-lines" aria-hidden="true"><i></i></div><div class="bracket-round">${finals}</div></div></section>`;
     }).join("");
     const finalRound=matches.filter(item=>item.category===category&&item.phase==="finale-girone");
     $("finalsBracket").innerHTML=bracket||(finalRound.length?`<section class="bracket-section"><h3>Girone finale tra le vincitrici</h3><div class="card-list">${finalRound.map(card).join("")}</div></section>`:'<div class="empty">Fase finale non prevista.</div>');
@@ -404,12 +409,20 @@
   }
 
   function updateAdmissionAdvice(){
-    const form=$("categoryForm"),category=form?.elements.code.value.toUpperCase()||form?.elements.code.value,method=form?.elements.admissionMethod.value,box=$("admissionAdvice");if(!box)return;
+    const form=$("categoryForm"),category=form?.elements.code.value.toUpperCase()||form?.elements.code.value,method=form?.elements.admissionMethod.value,placement=form?.elements.placementMode.value,entry=form?.elements.entryRound.value,box=$("admissionAdvice");if(!box)return;
     const count=groupsCatalog.filter(item=>item.categoryCode===category).length;
-    if(count>1&&count%2===1&&method==="top2_each")box.textContent=`${count} gironi: le prime 2 produrrebbero ${count*2} qualificate. Puoi scegliere un girone finale tra le vincitrici; con 3 gironi puoi anche ammettere le 3 vincitrici e la migliore seconda. Per tabelloni più grandi serve definire teste di serie e turni preliminari.`;
-    else if(method==="winners_plus_best_second")box.textContent="Per 3 gironi della stessa dimensione: accedono le 3 vincitrici e la migliore seconda, confrontata con punti, set e QP.";
-    else if(method==="winners_round_robin")box.textContent="Per 3 gironi: le 3 vincitrici disputano un girone finale di tre gare.";
-    else box.textContent="Modalità standard: accedono le prime 2 di ciascun girone.";
+    let advice="";
+    if(count>1&&count%2===1&&method==="top2_each")advice=`${count} gironi: le prime 2 produrrebbero ${count*2} qualificate. Puoi scegliere un girone finale tra le vincitrici; con 3 gironi puoi anche ammettere le 3 vincitrici e la migliore seconda.`;
+    else if(method==="winners_plus_best_second")advice="Per 3 gironi della stessa dimensione accedono le 3 vincitrici e la migliore seconda, confrontata con punti, set e QP.";
+    else if(method==="winners_round_robin")advice="Le vincitrici disputano un girone finale: usa il livello 1°–2°, perché il titolo viene determinato dalla classifica.";
+    else advice=`Accedono le prime ${method==="top8_each"?8:method==="top4_each"?4:2} di ciascun girone.`;
+    const qualified=method==="top8_each"?count*8:method==="top4_each"?count*4:method==="top2_each"?count*2:method==="winners_plus_best_second"?4:count,needed=entry==="round_of_16"?16:entry==="quarterfinals"?8:entry==="final"?2:placement==="top8"?8:4;
+    if(method!=="winners_round_robin"&&count&&qualified!==needed)advice+=` La configurazione produce ${qualified} qualificate, mentre il turno scelto ne richiede ${needed}.`;
+    else if(placement==="top8"&&entry==="semifinals")advice+=" Come nel modello VolleyStars 2026: semifinali C1–D2/D1–C2 e C3–D4/D3–C4, poi quattro finali di piazzamento.";
+    else if(placement==="top8")advice+=" Le perdenti dei quarti alimenteranno le semifinali 5°–8° e le finali 5°–6° e 7°–8°.";
+    else if(placement==="top4")advice+=" Verranno generate le finali 1°–2° e 3°–4°.";
+    else if(method!=="winners_round_robin")advice+=" Verrà generata soltanto la finale 1°–2°.";
+    box.textContent=advice;
   }
 
   const italianDate=value=>{if(!value)return "";const [y,m,d]=value.split("-");return y&&m&&d?`${d}/${m}/${y}`:value;};
@@ -469,8 +482,12 @@
     if(unallocated.length)issues.push(`${unallocated.length} gare ancora da allocare.`);const unassigned=teamsCatalog.filter(team=>!team.groupCode);if(unassigned.length)issues.push(`${unassigned.length} squadre non ancora assegnate a un girone.`);
     categoriesCatalog.forEach(category=>{
       const groups=groupsCatalog.filter(group=>group.categoryCode===category.code);if(!groups.length)issues.push(`${category.code}: nessun girone.`);
-      groups.forEach(group=>{const count=teamsCatalog.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).length;if(count<2)issues.push(`${category.code} ${group.name}: servono almeno 2 squadre.`);});
-      if(groups.length>1&&groups.length%2===1&&category.admissionMethod==="top2_each")issues.push(`${category.code}: scegli una modalità di ammissione compatibile con ${groups.length} gironi.`);
+      const depth=category.admissionMethod==="top8_each"?8:category.admissionMethod==="top4_each"?4:2;
+      groups.forEach(group=>{const count=teamsCatalog.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).length;if(count<2)issues.push(`${category.code} ${group.name}: servono almeno 2 squadre.`);else if(category.admissionMethod?.endsWith("_each")&&count<depth)issues.push(`${category.code} ${group.name}: servono almeno ${depth} squadre per l’ammissione scelta.`);});
+      const qualified=category.admissionMethod==="top8_each"?groups.length*8:category.admissionMethod==="top4_each"?groups.length*4:category.admissionMethod==="top2_each"?groups.length*2:category.admissionMethod==="winners_plus_best_second"?4:groups.length,needed=category.entryRound==="round_of_16"?16:category.entryRound==="quarterfinals"?8:category.entryRound==="final"?2:category.placementMode==="top8"?8:4;
+      if(category.admissionMethod!=="winners_round_robin"&&groups.length&&qualified!==needed)issues.push(`${category.code}: ${qualified} qualificate, ma il formato scelto ne richiede ${needed}.`);
+      if(category.entryRound==="final"&&category.placementMode!=="top2")issues.push(`${category.code}: la finale diretta può determinare soltanto 1° e 2° posto.`);
+      if(category.admissionMethod==="winners_round_robin"&&category.placementMode!=="top2")issues.push(`${category.code}: il girone finale tra le vincitrici richiede il livello 1°–2°.`);
       const expected=groups.reduce((sum,group)=>{const n=teamsCatalog.filter(team=>team.categoryCode===category.code&&team.groupCode===group.code).length;return sum+n*(n-1)/2;},0),actual=matchesCatalog.filter(item=>item.category===category.code&&item.phase==="girone").length;
       if(actual<expected)issues.push(`${category.code}: mancano ${expected-actual} gare di girone da generare.`);
       if(expected&&actual>=expected&&!matchesCatalog.some(item=>item.category===category.code&&item.phase!=="girone"))issues.push(`${category.code}: fase finale da generare.`);
@@ -514,7 +531,7 @@
     $("settingsForm").elements.matchDurationMinutes.value=settingsCatalog.match_duration_minutes||70;
     $("courtAdminList").innerHTML=courtsCatalog.map(item=>adminRow(`<strong>${esc(item.name)}</strong> · codice ${esc(item.code)}`,"court",item.code)).join("");
     $("dayAdminList").innerHTML=daysCatalog.map(item=>adminRow(`<strong>${esc(item.name)}</strong> · ${esc(italianDate(item.date))} · dalle ${esc(item.startTime)}`,"day",item.code)).join("");
-    $("categoryAdminList").innerHTML=categoriesCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.admissionMethod==="top2_each"?"prime 2 per girone":item.admissionMethod==="winners_plus_best_second"?"vincitrici + migliore seconda":"girone finale vincitrici")}`,"category",item.code)).join("");
+    $("categoryAdminList").innerHTML=categoriesCatalog.map(item=>{const admission=item.admissionMethod==="top8_each"?"prime 8 per girone":item.admissionMethod==="top4_each"?"prime 4 per girone":item.admissionMethod==="top2_each"?"prime 2 per girone":item.admissionMethod==="winners_plus_best_second"?"vincitrici + migliore seconda":"girone finale vincitrici",placement=item.placementMode==="top8"?"posti 1°–8°":item.placementMode==="top4"?"posti 1°–4°":"posti 1°–2°",entry=item.entryRound==="round_of_16"?"dagli ottavi":item.entryRound==="quarterfinals"?"dai quarti":item.entryRound==="final"?"finale diretta":"dalle semifinali";return adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(admission)} · ${esc(entry)} · ${esc(placement)}`,"category",item.code);}).join("");
     $("groupAdminList").innerHTML=groupsCatalog.map(item=>adminRow(`<strong>${esc(item.categoryCode)} ${esc(item.code)}</strong> · ${esc(item.name)}`,"group",`${item.categoryCode}|${item.code}`)).join("");
     $("teamAdminList").innerHTML=teamsCatalog.map(item=>adminRow(`<strong>${esc(item.code)}</strong> · ${esc(item.name)} · ${esc(item.categoryCode)} · ${item.groupCode?`girone ${esc(item.groupCode)}`:"non assegnata"}`,"team",item.code)).join("");
     $("staffAdminList").innerHTML=staffCatalog.map(item=>{const roles=[item.canReferee&&"arbitro",item.canScorekeeper&&"refertista",item.canCourtManager&&"responsabile"].filter(Boolean).join(", ");return adminRow(`<strong>${esc(item.name)}</strong> · ${esc(roles)}`,"staff",item.id);}).join("");
@@ -637,7 +654,7 @@
   $("loginForm").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());try{const payload=await apiPost("/api/auth/login",data);$("loginDialog").close();form.reset();setAuth(payload.user);}catch(error){$("loginError").textContent=error.message;}});
   $("resultForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());try{await apiPost("/api/results",{gameId:data.gameId,category:data.category,result:data.result,sets:[data.set1,data.set2,data.set3]});$("resultDialog").close();await sync();}catch(error){$("resultError").textContent=error.message;}});
   [["settingsForm","settings"],["courtForm","court"],["dayForm","day"],["categoryForm","category"],["groupForm","group"],["teamForm","team"],["staffForm","staff"],["allocationForm","allocation"]].forEach(([id,entity])=>$(id).addEventListener("submit",async event=>{event.preventDefault();try{await saveAdminEntity(entity,event.currentTarget);}catch(error){alert(error.message);}}));
-  $("categoryForm").elements.code.addEventListener("input",updateAdmissionAdvice);$("categoryForm").elements.admissionMethod.addEventListener("change",updateAdmissionAdvice);
+  $("categoryForm").elements.code.addEventListener("input",updateAdmissionAdvice);$("categoryForm").elements.admissionMethod.addEventListener("change",updateAdmissionAdvice);$("categoryForm").elements.entryRound.addEventListener("change",updateAdmissionAdvice);$("categoryForm").elements.placementMode.addEventListener("change",updateAdmissionAdvice);
   $("allocationForm").elements.gameId.addEventListener("change",event=>fillAdminForm("allocation",event.currentTarget.value));
   $("plannerDay").addEventListener("change",()=>{plannerDirty=false;plannerDayCode=$("plannerDay").value;renderPlanner(true);});$("savePlanner").addEventListener("click",savePlanner);$("confirmPlan").addEventListener("click",confirmPlan);$("autoAllocate").addEventListener("click",autoAllocate);
   $("bulkSelectAll").addEventListener("click",()=>{document.querySelectorAll("[data-bulk-game]").forEach(input=>{input.checked=true;bulkStaffSelection.add(input.dataset.bulkGame);});});$("bulkSelectNone").addEventListener("click",()=>{bulkStaffSelection.clear();document.querySelectorAll("[data-bulk-game]").forEach(input=>input.checked=false);});$("bulkStaffForm").addEventListener("submit",event=>{event.preventDefault();saveBulkStaff(event.currentTarget);});

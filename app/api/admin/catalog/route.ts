@@ -74,10 +74,14 @@ export async function POST(request:Request){
       else await db().prepare("INSERT INTO staff(name,can_referee,can_scorekeeper,can_court_manager,active) VALUES(?,?,?,?,1) ON CONFLICT(name) DO UPDATE SET can_referee=excluded.can_referee,can_scorekeeper=excluded.can_scorekeeper,can_court_manager=excluded.can_court_manager,active=1").bind(name,referee,scorekeeper,manager).run();
     }else if(entity==="category"&&action==="save"){
       const code=upper(data.code);if(!/^[A-Z0-9_-]{2,12}$/.test(code))return json({error:"Codice categoria non valido"},400);
-      const admissionMethod=text(data.admissionMethod)||"top2_each",allowedMethods=["top2_each","winners_plus_best_second","winners_round_robin"];
+      const admissionMethod=text(data.admissionMethod)||"top2_each",allowedMethods=["top2_each","top4_each","top8_each","winners_plus_best_second","winners_round_robin"];
       if(!allowedMethods.includes(admissionMethod))return json({error:"Seleziona una modalità di ammissione valida."},400);
+      const placementMode=text(data.placementMode)||"top2",allowedPlacements=["top2","top4","top8"];
+      if(!allowedPlacements.includes(placementMode))return json({error:"Seleziona quali posizioni determinare nella fase finale."},400);
+      const entryRound=text(data.entryRound)||"semifinals",allowedRounds=["final","semifinals","quarterfinals","round_of_16"];
+      if(!allowedRounds.includes(entryRound))return json({error:"Seleziona il turno iniziale della fase finale."},400);
       await db().prepare("INSERT INTO categories(code,name,color,sort_order,active) VALUES(?,?,?,?,1) ON CONFLICT(code) DO UPDATE SET name=excluded.name,color=excluded.color,sort_order=excluded.sort_order,active=1").bind(code,text(data.name)||code,text(data.color)||"#dff4ea",Number(data.sortOrder)||0).run();
-      await db().prepare("INSERT INTO category_settings(category_code,admission_method) VALUES(?,?) ON CONFLICT(category_code) DO UPDATE SET admission_method=excluded.admission_method").bind(code,admissionMethod).run();
+      await db().prepare("INSERT INTO category_settings(category_code,admission_method,placement_mode,entry_round) VALUES(?,?,?,?) ON CONFLICT(category_code) DO UPDATE SET admission_method=excluded.admission_method,placement_mode=excluded.placement_mode,entry_round=excluded.entry_round").bind(code,admissionMethod,placementMode,entryRound).run();
     }else if(entity==="group"&&action==="save"){
       const category=upper(data.categoryCode);let code=upper(data.code);if(!code){const rows=await db().prepare("SELECT code FROM tournament_groups WHERE category_code=? ORDER BY sort_order,code").bind(category).all<{code:string}>();const used=new Set(rows.results.map(item=>item.code));code="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").find(item=>!used.has(item))||"";}if(!code)return json({error:"Numero massimo di gironi raggiunto."},400);await db().prepare("INSERT INTO tournament_groups(category_code,code,name,sort_order) VALUES(?,?,?,?) ON CONFLICT(category_code,code) DO UPDATE SET name=excluded.name,sort_order=excluded.sort_order").bind(category,code,text(data.name)||`Girone ${code}`,Number(data.sortOrder)||0).run();
     }else if(entity==="team"&&action==="save"){
