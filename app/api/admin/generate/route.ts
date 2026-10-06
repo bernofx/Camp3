@@ -15,6 +15,7 @@ const pairKey=(a:string,b:string)=>[a,b].sort().join("|");
 
 export async function POST(request:Request){
   await ensureDatabase();if(!(await requireUser(request,["admin"])))return json({error:"Non autorizzato"},403);
+  const state=text((await db().prepare("SELECT value FROM tournament_settings WHERE key='tournament_state'").first<{value:string}>())?.value)||"planning";if(state!=="planning")return json({error:"Riapri la pianificazione prima di generare nuove gare."},409);
   const payload=await request.json() as {scope?:string;categoryCode?:string},scope=text(payload.scope),category=text(payload.categoryCode).toUpperCase();
   const categoryRow=await db().prepare("SELECT c.code,COALESCE(s.admission_method,'') AS admissionMethod,COALESCE(s.placement_mode,'') AS placementMode,COALESCE(s.entry_round,'') AS entryRound FROM categories c LEFT JOIN category_settings s ON s.category_code=c.code WHERE c.code=? AND c.active=1").bind(category).first<any>();
   if(!categoryRow)return json({error:"Seleziona una categoria valida."},400);if(!categoryRow.admissionMethod)return json({error:"Configura prima la modalità di ammissione della categoria."},409);

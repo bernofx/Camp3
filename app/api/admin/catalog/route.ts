@@ -1,11 +1,12 @@
 import { db, json, requireUser } from "../../../../lib/auth";
 import { ensureDatabase } from "../../../../lib/database";
+import { dependencyOrderError, type ScheduleGroup } from "../../../../lib/schedule-dependencies";
 
 const text = (value: unknown) => String(value ?? "").trim();
 const upper = (value: unknown) => text(value).toUpperCase();
 const person = (value: unknown) => text(value).toLocaleLowerCase("it").replace(/\s+/g, " ");
 
-type MatchRow = {gameId:string;category:string;date:string;time:string;court:string;homeRef:string;awayRef:string;scorekeeper:string;referee:string;courtManager:string};
+type MatchRow = {gameId:string;category:string;groupCode:string;phase:string;date:string;time:string;court:string;homeRef:string;awayRef:string;scorekeeper:string;referee:string;courtManager:string;result:string;status:string};
 type LinkRow = {targetGameId:string;categoryCode:string;homeKind:string;homeRef:string;awayKind:string;awayRef:string};
 
 function startMinutes(match: Pick<MatchRow,"date"|"time">) {
@@ -28,7 +29,7 @@ function matchTokens(gameId:string,matches:Map<string,MatchRow>,links:Map<string
 }
 async function scheduleData(){
   const [matchRows,linkRows]=await Promise.all([
-    db().prepare(`SELECT game_id AS gameId,category_code AS category,match_date AS date,match_time AS time,court,home_ref AS homeRef,away_ref AS awayRef,scorekeeper,referee,court_manager AS courtManager FROM matches`).all<MatchRow>(),
+    db().prepare(`SELECT game_id AS gameId,category_code AS category,group_code AS groupCode,phase,match_date AS date,match_time AS time,court,home_ref AS homeRef,away_ref AS awayRef,scorekeeper,referee,court_manager AS courtManager,result,status FROM matches`).all<MatchRow>(),
     db().prepare(`SELECT target_game_id AS targetGameId,category_code AS categoryCode,home_kind AS homeKind,home_ref AS homeRef,away_kind AS awayKind,away_ref AS awayRef FROM final_links`).all<LinkRow>(),
   ]);
   return {matches:new Map<string,MatchRow>((matchRows.results as MatchRow[]).map(item=>[item.gameId,item])),links:new Map<string,LinkRow>((linkRows.results as LinkRow[]).map(item=>[item.targetGameId,item]))};
@@ -54,11 +55,14 @@ async function validateWholeSchedule(duration:number){
 
 export async function POST(request:Request){
   await ensureDatabase();if(!(await requireUser(request,["admin"])))return json({error:"Non autorizzato"},403);
-  const payload=await request.json() as {entity?:string;action?:string;data?:Record<string,unknown>},entity=text(payload.entity),action=text(payload.action),data=payload.data||{};
+  const payload=await request.json() as {entity?:string;action?:string;data?:Record<string,unknown>},entity=text(payload.entity),action=text(payload.action),data=payload.data||{},state=text((await db().prepare("SELECT value FROM tournament_settings WHERE key='tournament_state'").first<{value:string}>())?.value)||"planning";
+  if(state==="closed")return json({error:"Il torneo è concluso. Riaprilo prima di apportare modifiche."},409);
+  if(state!=="planning"&&!['staff','allocation'].includes(entity))return json({error:"Riapri la pianificazione prima di modificare la struttura del torneo."},409);
   try{
     if(entity==="settings"&&action==="save"){
       const duration=Number(data.matchDurationMinutes);if(!Number.isInteger(duration)||duration<30||duration>180)return json({error:"La durata deve essere compresa tra 30 e 180 minuti."},400);
       const conflict=await validateWholeSchedule(duration);if(conflict)return json({error:conflict},409);
+      const schedule=await scheduleData(),dependency=dependencyOrderError([...schedule.matches.values()],[...schedule.links.values()].map(link=>({...link,category:link.categoryCode})),(await db().prepare("SELECT category_code AS category,code,sort_order AS sortOrder FROM tournament_groups").all<ScheduleGroup>()).results,duration);if(dependency)return json({error:dependency},409);
       await db().prepare("INSERT INTO tournament_settings(key,value) VALUES('match_duration_minutes',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(String(duration)).run();
     }else if(entity==="court"&&action==="save"){
       const code=text(data.code);if(!/^[A-Za-z0-9_-]{1,12}$/.test(code))return json({error:"Codice campo non valido."},400);
@@ -94,22 +98,22 @@ export async function POST(request:Request){
       if(group&&!(await db().prepare("SELECT id FROM tournament_groups WHERE category_code=? AND code=?").bind(category,group).first()))return json({error:"Girone non valido per questa categoria."},400);
       await db().prepare("UPDATE teams SET group_code=? WHERE code=?").bind(group,code).run();
     }else if(entity==="allocation"&&action==="save"){
-      const gameId=text(data.gameId),existing=await db().prepare("SELECT game_id AS gameId,category_code AS category,home_ref AS homeRef,away_ref AS awayRef FROM matches WHERE game_id=?").bind(gameId).first<any>();if(!existing)return json({error:"Seleziona una gara esistente."},400);
+      const gameId=text(data.gameId),existing=await db().prepare("SELECT game_id AS gameId,category_code AS category,group_code AS groupCode,phase,home_ref AS homeRef,away_ref AS awayRef,result,status FROM matches WHERE game_id=?").bind(gameId).first<any>();if(!existing)return json({error:"Seleziona una gara esistente."},400);if(state==="live"&&(existing.status==="live"||existing.status==="completed"))return json({error:"Una gara iniziata o conclusa non può essere riallocata."},409);
       const italian=text(data.date),parts=italian.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!parts)return json({error:"Inserisci la data nel formato gg/MM/aaaa."},400);const day=Number(parts[1]),month=Number(parts[2]),year=Number(parts[3]),parsed=new Date(Date.UTC(year,month-1,day));if(parsed.getUTCFullYear()!==year||parsed.getUTCMonth()!==month-1||parsed.getUTCDate()!==day)return json({error:"La data inserita non esiste."},400);const date=`${parts[3]}-${parts[2]}-${parts[1]}`;
       const court=text(data.court),time=text(data.time),timeParts=time.match(/^(\d{2}):(\d{2})$/);if(!timeParts||Number(timeParts[1])>23||Number(timeParts[2])>59)return json({error:"Ora non valida."},400);if(!(await db().prepare("SELECT code FROM courts WHERE code=? AND active=1").bind(court).first()))return json({error:"Seleziona un campo disponibile."},400);
       const candidate:MatchRow={...existing,date,time,court,scorekeeper:text(data.scorekeeper),referee:text(data.referee),courtManager:text(data.courtManager)};
       for(const [name,column,label] of [[candidate.scorekeeper,"can_scorekeeper","refertista"],[candidate.referee,"can_referee","arbitro"],[candidate.courtManager,"can_court_manager","responsabile di campo"]])if(name){const allowed=await db().prepare(`SELECT id FROM staff WHERE name=? AND ${column}=1 AND active=1`).bind(name).first();if(!allowed)return json({error:`${name} non è configurato come ${label}.`},400);}
-      const schedule=await scheduleData(),duration=Number((await db().prepare("SELECT value FROM tournament_settings WHERE key='match_duration_minutes'").first<{value:string}>())?.value||70),conflict=scheduleConflict(candidate,schedule.matches,schedule.links,duration);if(conflict)return json({error:conflict},409);
+      const schedule=await scheduleData(),duration=Number((await db().prepare("SELECT value FROM tournament_settings WHERE key='match_duration_minutes'").first<{value:string}>())?.value||70),conflict=scheduleConflict(candidate,schedule.matches,schedule.links,duration);if(conflict)return json({error:conflict},409);const combined=new Map(schedule.matches);combined.set(candidate.gameId,candidate);const dependency=dependencyOrderError([...combined.values()],[...schedule.links.values()].map(link=>({...link,category:link.categoryCode})),(await db().prepare("SELECT category_code AS category,code,sort_order AS sortOrder FROM tournament_groups").all<ScheduleGroup>()).results,duration);if(dependency)return json({error:dependency},409);
       await db().prepare("UPDATE matches SET match_date=?,match_time=?,court=?,scorekeeper=?,referee=?,court_manager=?,status=CASE WHEN result<>'' THEN 'completed' ELSE 'scheduled' END WHERE game_id=?").bind(date,time,court,candidate.scorekeeper,candidate.referee,candidate.courtManager,gameId).run();
     }else if(entity==="match"&&action==="save"){
       const gameId=text(data.gameId);if(!/^\d{4}$/.test(gameId))return json({error:"Numero gara: quattro cifre"},400);
       const court=text(data.court),category=upper(data.categoryCode),homeRef=text(data.homeRef),awayRef=text(data.awayRef);if(!homeRef||!awayRef||upper(homeRef)===upper(awayRef))return json({error:"Le due partecipanti devono essere diverse."},400);
       if(!(await db().prepare("SELECT code FROM courts WHERE code=? AND active=1").bind(court).first()))return json({error:"Seleziona un campo disponibile nella configurazione."},400);
       if(!(await db().prepare("SELECT code FROM categories WHERE code=? AND active=1").bind(category).first()))return json({error:"Categoria non valida."},400);
-      const candidate:MatchRow={gameId,category,date:text(data.date),time:text(data.time),court,homeRef,awayRef,scorekeeper:text(data.scorekeeper),referee:text(data.referee),courtManager:text(data.courtManager)};
+      const candidate:MatchRow={gameId,category,groupCode:upper(data.groupCode),phase:text(data.phase)||"girone",date:text(data.date),time:text(data.time),court,homeRef,awayRef,scorekeeper:text(data.scorekeeper),referee:text(data.referee),courtManager:text(data.courtManager),result:"",status:"scheduled"};
       if(!/^\d{4}-\d{2}-\d{2}$/.test(candidate.date)||!/^\d{2}:\d{2}$/.test(candidate.time))return json({error:"Data o ora non valida."},400);
       for(const [name,column,label] of [[candidate.scorekeeper,"can_scorekeeper","refertista"],[candidate.referee,"can_referee","arbitro"],[candidate.courtManager,"can_court_manager","responsabile di campo"]])if(name){const allowed=await db().prepare(`SELECT id FROM staff WHERE name=? AND ${column}=1 AND active=1`).bind(name).first();if(!allowed)return json({error:`${name} non è configurato come ${label}.`},400);}
-      const schedule=await scheduleData(),duration=Number((await db().prepare("SELECT value FROM tournament_settings WHERE key='match_duration_minutes'").first<{value:string}>())?.value||70),conflict=scheduleConflict(candidate,schedule.matches,schedule.links,duration);if(conflict)return json({error:conflict},409);
+      const schedule=await scheduleData(),duration=Number((await db().prepare("SELECT value FROM tournament_settings WHERE key='match_duration_minutes'").first<{value:string}>())?.value||70),conflict=scheduleConflict(candidate,schedule.matches,schedule.links,duration);if(conflict)return json({error:conflict},409);const combined=new Map(schedule.matches);combined.set(candidate.gameId,candidate);const dependency=dependencyOrderError([...combined.values()],[...schedule.links.values()].map(link=>({...link,category:link.categoryCode})),(await db().prepare("SELECT category_code AS category,code,sort_order AS sortOrder FROM tournament_groups").all<ScheduleGroup>()).results,duration);if(dependency)return json({error:dependency},409);
       await db().prepare(`INSERT INTO matches(game_id,category_code,group_code,phase,match_date,match_time,court,home_ref,away_ref,scorekeeper,referee,court_manager,result,set_1,set_2,set_3,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(game_id) DO UPDATE SET category_code=excluded.category_code,group_code=excluded.group_code,phase=excluded.phase,match_date=excluded.match_date,match_time=excluded.match_time,court=excluded.court,home_ref=excluded.home_ref,away_ref=excluded.away_ref,scorekeeper=excluded.scorekeeper,referee=excluded.referee,court_manager=excluded.court_manager`).bind(gameId,category,upper(data.groupCode),text(data.phase)||"girone",candidate.date,candidate.time,court,homeRef,awayRef,candidate.scorekeeper,candidate.referee,candidate.courtManager,"","","","","scheduled").run();
     }else if(entity==="finalLink"&&action==="save"){
       const targetGameId=text(data.targetGameId),categoryCode=upper(data.categoryCode),homeKind=text(data.homeKind),awayKind=text(data.awayKind),homeRef=text(data.homeRef),awayRef=text(data.awayRef),allowed=["winner","loser","team","rank","literal"];
@@ -122,7 +126,7 @@ export async function POST(request:Request){
       }
       const schedule=await scheduleData();schedule.links.set(targetGameId,{targetGameId,categoryCode:target.category,homeKind,homeRef,awayKind,awayRef});
       const targetMatch=schedule.matches.get(targetGameId),duration=Number((await db().prepare("SELECT value FROM tournament_settings WHERE key='match_duration_minutes'").first<{value:string}>())?.value||70);
-      if(targetMatch){const others=new Map(schedule.matches);others.delete(targetGameId);const conflict=scheduleConflict(targetMatch,others,schedule.links,duration);if(conflict)return json({error:conflict},409);}
+      if(targetMatch){const others=new Map(schedule.matches);others.delete(targetGameId);const conflict=scheduleConflict(targetMatch,others,schedule.links,duration);if(conflict)return json({error:conflict},409);const dependency=dependencyOrderError([...schedule.matches.values()],[...schedule.links.values()].map(link=>({...link,category:link.categoryCode})),(await db().prepare("SELECT category_code AS category,code,sort_order AS sortOrder FROM tournament_groups").all<ScheduleGroup>()).results,duration);if(dependency)return json({error:dependency},409);}
       await db().prepare(`INSERT INTO final_links(target_game_id,category_code,section_title,section_order,target_order,home_kind,home_ref,away_kind,away_ref) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(target_game_id) DO UPDATE SET category_code=excluded.category_code,section_title=excluded.section_title,section_order=excluded.section_order,target_order=excluded.target_order,home_kind=excluded.home_kind,home_ref=excluded.home_ref,away_kind=excluded.away_kind,away_ref=excluded.away_ref`).bind(targetGameId,target.category,text(data.sectionTitle)||"Fase finale",Number(data.sectionOrder)||0,Number(data.targetOrder)||0,homeKind,homeRef,awayKind,awayRef).run();
     }else if(action==="delete"){
       if(entity==="match"){const used=await db().prepare("SELECT target_game_id FROM final_links WHERE home_ref=? OR away_ref=? LIMIT 1").bind(text(data.gameId),text(data.gameId)).first<any>();if(used)return json({error:`La gara alimenta la gara ${used.target_game_id}: elimina prima l’accoppiamento.`},409);await db().prepare("DELETE FROM final_links WHERE target_game_id=?").bind(text(data.gameId)).run();await db().prepare("DELETE FROM matches WHERE game_id=?").bind(text(data.gameId)).run();}
@@ -135,7 +139,7 @@ export async function POST(request:Request){
       else if(entity==="day"){const row=await db().prepare("SELECT day_date AS date FROM tournament_days WHERE code=?").bind(text(data.code)).first<{date:string}>(),used=row&&await db().prepare("SELECT game_id FROM matches WHERE match_date=? LIMIT 1").bind(row.date).first<any>();if(used)return json({error:`La giornata contiene la gara ${used.game_id}.`},409);await db().prepare("DELETE FROM tournament_days WHERE code=?").bind(text(data.code)).run();}
       else return json({error:"Operazione non valida"},400);
     }else return json({error:"Operazione non valida"},400);
-    if(["settings","court","day","category","group","team","teamGroup","allocation","match","finalLink"].includes(entity))await db().prepare("INSERT INTO tournament_settings(key,value) VALUES('plan_confirmed','0') ON CONFLICT(key) DO UPDATE SET value='0'").run();
+    if(state==="planning"&&["settings","court","day","category","group","team","teamGroup","allocation","match","finalLink"].includes(entity))await db().prepare("INSERT INTO tournament_settings(key,value) VALUES('plan_confirmed','0') ON CONFLICT(key) DO UPDATE SET value='0'").run();
     return json({ok:true});
   }catch(error){return json({error:error instanceof Error?error.message:"Operazione non riuscita"},400);}
 }

@@ -67,6 +67,7 @@ export async function ensureDatabase() {
     }
     const infrastructure = [
       db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) VALUES('match_duration_minutes','70')"),
+      db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) SELECT 'tournament_state',CASE WHEN EXISTS(SELECT 1 FROM tournament_settings WHERE key='plan_confirmed' AND value='1') THEN 'confirmed' ELSE 'planning' END"),
       ...["1","2","3","4","5"].map((code,index)=>db.prepare("INSERT OR IGNORE INTO courts(code,name,sort_order,active) VALUES(?,?,?,1)").bind(code,`Campo ${code}`,index+1)),
     ];
     const links = [
