@@ -17,7 +17,7 @@ function startMinutes(match: Pick<MatchRow,"date"|"time">) {
 function allocated(match:Pick<MatchRow,"date"|"time"|"court">){return Boolean(match.date&&match.time&&match.court);}
 function overlaps(a:MatchRow,b:MatchRow,duration:number) { if(!allocated(a)||!allocated(b))return false;const x=startMinutes(a),y=startMinutes(b);return x<y+duration&&y<x+duration; }
 function sourceTokens(kind:string,ref:string,category:string,matches:Map<string,MatchRow>,links:Map<string,LinkRow>,seen:Set<string>):Set<string>{
-  if(kind==="winner"||kind==="loser")return matchTokens(ref,matches,links,seen);
+  if(kind==="winner"||kind==="loser")return new Set([`outcome:${ref}:${kind}`]);
   const value=upper(ref);if(/^\d+$/.test(value))return new Set([`team:${value}`]);
   if(/^[A-Z][A-Z0-9_-]*\d+$/.test(value))return new Set([`rank:${category}:${value}`]);
   return new Set([`ref:${category}:${value}`]);
