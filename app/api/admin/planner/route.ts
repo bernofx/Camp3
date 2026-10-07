@@ -7,6 +7,7 @@ type Match={gameId:string;category:string;groupCode:string;phase:string;date:str
 type Link={targetGameId:string;category:string;homeKind:string;homeRef:string;awayKind:string;awayRef:string};
 const minutes=(value:string)=>{const [h,m]=value.split(":").map(Number);return h*60+m;};
 const clock=(value:number)=>`${String(Math.floor(value/60)).padStart(2,"0")}:${String(value%60).padStart(2,"0")}`;
+const scheduleFingerprint=(rows:Pick<Match,"gameId"|"date"|"time"|"court">[])=>rows.map(item=>`${item.gameId}|${item.date||""}|${item.time||""}|${item.court||""}`).sort().join("\n");
 function placementOrder(match:Pick<Match,"phase"|"homeRef">){if(match.phase!=="finale")return -1;const places=(match.homeRef.match(/\d+/g)||[]).map(Number),key=`${places[0]||0}-${places[1]||0}`;return key==="7-8"?0:key==="5-6"?1:key==="3-4"?2:key==="1-2"?3:1;}
 function sourceTokens(kind:string,ref:string,category:string,matches:Map<string,Match>,links:Map<string,Link>,seen:Set<string>):Set<string>{
   if(kind==="winner"||kind==="loser")return new Set([`outcome:${ref}:${kind}`]);const value=ref.toUpperCase();if(/^\d+$/.test(value))return new Set([`team:${value}`]);if(/^[A-Z][A-Z0-9_-]*\d+$/.test(value))return new Set([`rank:${category}:${value}`]);return new Set([`ref:${category}:${value}`]);
@@ -86,6 +87,7 @@ export async function POST(request:Request){
   }
   if(action==="applyGlobal"){
     const schedule=Array.isArray(payload.schedule)?payload.schedule:[],matchRows=(await db().prepare("SELECT game_id AS gameId,category_code AS category,group_code AS groupCode,phase,match_date AS date,match_time AS time,court,home_ref AS homeRef,away_ref AS awayRef,referee,court_manager AS courtManager,result,status FROM matches ORDER BY game_id").all<Match>()).results as Match[];
+    if(text(payload.baseFingerprint)!==scheduleFingerprint(matchRows))return json({error:"Il piano è stato modificato da un’altra sessione. Ricarica i dati prima di salvare, così non perderai le modifiche più recenti."},409);
     if(schedule.length!==matchRows.length)return json({error:"Il piano completo non contiene tutte le gare. Ricarica i dati e riprova."},409);
     const [dayRows,courtRows,linkResult,groupResult,durationRow]=await Promise.all([
       db().prepare("SELECT code,name,day_date AS date,start_time AS startTime,end_time AS endTime FROM tournament_days").all<{code:string;name:string;date:string;startTime:string;endTime:string}>(),
