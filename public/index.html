@@ -132,6 +132,7 @@
       </div>
       <p class="standings-note">Configura struttura, squadre e calendario. Le modifiche sono salvate nel database della v1.</p>
       <section class="workflow-guide" aria-labelledby="workflowGuideTitle"><div class="workflow-guide-head"><div><p class="eyebrow">CHECKLIST</p><h3 id="workflowGuideTitle">A che punto sei</h3></div><strong id="workflowProgress">0 di 6</strong></div><ol id="workflowChecklist" class="workflow-checklist"></ol></section>
+      <section class="configuration-transfer" aria-labelledby="configurationTransferTitle"><div><p class="eyebrow">CONFIGURAZIONE PORTABILE</p><h3 id="configurationTransferTitle">Esporta o carica un torneo</h3><p>Il file contiene struttura, squadre, gare e pianificazione, senza utenti, password o risultati. L’importazione è consentita soltanto prima dell’avvio.</p></div><div class="configuration-transfer-actions"><a href="/api/admin/configuration" download="VolleyStars-configurazione.volleystars.json">Scarica configurazione</a><label>Carica dal PC<input id="configurationFile" type="file" accept=".json,.volleystars.json,application/json"></label><button id="applyConfiguration" type="button" disabled>Applica configurazione</button></div><div id="configurationImportStatus" class="configuration-import-status">Nessun file selezionato.</div></section>
       <a class="excel-export" href="/api/export" download>Scarica Excel di controllo</a>
       <div class="admin-sections">
         <details class="admin-card" open><summary>Campi e durata</summary>
@@ -186,6 +187,18 @@
       <section class="bulk-staff-card" aria-labelledby="bulkStaffTitle"><div class="bulk-staff-head"><div><p class="eyebrow">ASSEGNAZIONE MULTIPLA</p><h3 id="bulkStaffTitle">Staff per una serie di gare</h3><p>Le gare sono raggruppate per campo e giorno, poi ordinate per orario. Seleziona una serie consecutiva e assegna lo stesso staff senza modificare gli altri campi.</p></div><div><button id="bulkSelectAll" type="button">Seleziona tutte</button><button id="bulkSelectNone" type="button">Deseleziona</button></div></div><div id="bulkStaffList" class="bulk-staff-list"></div><form id="bulkStaffForm" class="bulk-staff-form"><label>Refertista<select name="scorekeeper"></select></label><label>Arbitro<select name="referee"></select></label><label>Responsabile campo<select name="courtManager"></select></label><button type="submit">Applica alle gare selezionate</button><span id="bulkStaffMessage"></span></form></section>
       <details id="allocationDetails" class="precise-allocation"><summary>Dettagli gara: data, ora, campo e staff</summary><p class="admin-help">Il refertista è facoltativo e può essere indicato manualmente anche in seguito. Il flusso tramite QR non è ancora attivo. Anche arbitro e responsabile possono restare “Da definire” durante la pianificazione.</p><form id="allocationForm" class="admin-form match-admin-form"><label class="wide-field">Gara<select name="gameId" required></select></label><label>Data (gg/MM/aaaa)<input name="date" inputmode="numeric" placeholder="31/05/2026" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" required></label><label>Ora<input name="time" type="time" required></label><label>Campo<select name="court" required></select></label><label>Refertista (facoltativo)<select name="scorekeeper"></select></label><label>Arbitro<select name="referee"></select></label><label>Responsabile campo<select name="courtManager"></select></label><button type="submit">Salva dettagli gara</button></form></details><div id="matchAdminList" class="admin-list match-admin-list"></div>
     </section>
+    <section id="desktopPlannerView" class="view desktop-planner-view" aria-labelledby="desktopPlannerTab">
+      <div class="desktop-command-bar">
+        <div><p class="eyebrow">REGIA TORNEO</p><h2>Pianificazione globale</h2><p>Tutte le giornate e tutti i campi in un’unica vista. Trascina le gare, correggi gli orari e salva l’intero piano.</p></div>
+        <div class="desktop-command-actions"><button id="desktopAutoAllocate" type="button">Proposta automatica</button><button id="desktopSavePlan" class="primary-action" type="button">Salva piano completo</button></div>
+      </div>
+      <section class="desktop-status-strip" aria-live="polite"><div><span>STATO</span><strong id="desktopTournamentState">Pianificazione</strong></div><div><span>ALLOCATE</span><strong id="desktopAllocatedCount">0</strong></div><div><span>DA ALLOCARE</span><strong id="desktopDraftCount">0</strong></div><div><span>AVVISI</span><strong id="desktopWarningCount">0</strong></div><p id="desktopPlanMessage"></p></section>
+      <div class="desktop-planner-toolbar"><label>Categoria<select id="desktopCategoryFilter"><option value="all">Tutte</option></select></label><label class="desktop-search">Cerca gara o squadra<input id="desktopSearch" type="search" placeholder="Codice o nome"></label><button id="desktopResetDraft" type="button">Ricarica dati salvati</button></div>
+      <div class="desktop-workspace">
+        <aside class="desktop-pool-panel"><div><h3>Gare da allocare</h3><span id="desktopPoolCount">0</span></div><p>Trascina una gara in un campo. Verrà collocata nel primo spazio disponibile.</p><div id="desktopPool" class="desktop-pool"></div></aside>
+        <div id="desktopBoard" class="desktop-board"></div>
+      </div>
+    </section>
     <section id="themeView" class="view" aria-labelledby="themeTab">
       <div class="section-heading stacked"><div><p class="eyebrow">ASPETTO</p><h2>Stile dell’app</h2></div></div>
       <p class="standings-note">Prova colori, carattere, spaziatura e forma degli elementi. L’anteprima è immediata sul dispositivo; “Salva per tutti” rende lo stile visibile anche ai visitatori.</p>
@@ -228,6 +241,7 @@
     <button id="adminTab" class="nav-item" data-view="adminView" type="button" hidden><span>⚙</span>Gestione</button>
     <button id="groupsTab" class="nav-item" data-view="groupsView" type="button" hidden><span>▥</span>Gironi</button>
     <button id="plannerTab" class="nav-item" data-view="plannerView" type="button" hidden><span>▦</span>Pianifica</button>
+    <button id="desktopPlannerTab" class="nav-item desktop-only-tab" data-view="desktopPlannerView" type="button" hidden><span>▤</span>Regia</button>
     <button id="themeTab" class="nav-item" data-view="themeView" type="button" hidden><span>◐</span>Stile</button>
     <button id="infoTab" class="nav-item" data-view="infoView" type="button"><span>i</span>Info</button>
   </nav>

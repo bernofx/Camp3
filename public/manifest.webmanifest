@@ -1,7 +1,7 @@
 {
   "name":"VolleyStars 2026",
   "short_name":"VolleyStars",
-  "start_url":"./?env=test",
+  "start_url":"./",
   "scope":"./",
   "display":"standalone",
   "background_color":"#f6f2e9",

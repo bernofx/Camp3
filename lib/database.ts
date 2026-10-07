@@ -70,6 +70,8 @@ export async function ensureDatabase() {
     const infrastructure = [
       db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) VALUES('match_duration_minutes','70')"),
       db.prepare("INSERT OR IGNORE INTO tournament_settings(key,value) SELECT 'tournament_state',CASE WHEN EXISTS(SELECT 1 FROM tournament_settings WHERE key='plan_confirmed' AND value='1') THEN 'confirmed' ELSE 'planning' END"),
+      db.prepare("UPDATE teams SET category_code='U15' WHERE category_code='U16'"),
+      db.prepare("UPDATE teams SET category_code='U17' WHERE category_code='U18'"),
       ...["1","2","3","4","5"].map((code,index)=>db.prepare("INSERT OR IGNORE INTO courts(code,name,sort_order,active) VALUES(?,?,?,1)").bind(code,`Campo ${code}`,index+1)),
     ];
     const links = [
@@ -105,7 +107,7 @@ export async function ensureDatabase() {
       for (const [index, code] of groupCodes.entries()) seedStatements.push(db.prepare("INSERT OR IGNORE INTO tournament_groups(category_code,code,name,sort_order) VALUES(?,?,?,?)").bind(category,code,`Girone ${code}`,index));
     }
     for (const [code,name] of Object.entries(seed.teams)) {
-      const category = `U${code.slice(0,2)}`;
+      const category = code.startsWith("16") ? "U15" : code.startsWith("18") ? "U17" : `U${code.slice(0,2)}`;
       seedStatements.push(db.prepare("INSERT OR IGNORE INTO teams(code,name,category_code,group_code,active) VALUES(?,?,?,?,1)").bind(code,name,category,groupByTeam[code] || ""));
     }
     for (const match of seed.matches) {
