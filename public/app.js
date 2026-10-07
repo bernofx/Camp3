@@ -677,7 +677,7 @@
 
   function showResultToast(changes){
     if(!changes.length)return;
-    const visible=changes.slice(0,3).map(match=>`<article class="result-update-card" style="--match-tint:${tint(categoryColor(match.category),.20)}"><div class="result-update-time">${esc(match.time)}<small>Campo ${esc(match.court)} · gara ${esc(match.gameId)}</small></div><div class="result-update-main"><strong>${esc(expandMatchup(resolvedMatchup(match)))}</strong><p>${esc(resultText(match))}</p></div><span class="category-chip category-${esc(String(match.category).toLowerCase())}">${esc(match.category)}</span></article>`).join("");
+    const visible=changes.slice(0,3).map(match=>`<button type="button" class="result-update-card" data-result-destination="${match.phase==="girone"?"standings":"finals"}" data-result-category="${esc(match.category)}" style="--match-tint:${tint(categoryColor(match.category),.20)}" aria-label="Apri ${match.phase==="girone"?"la classifica":"la fase finale"} ${esc(match.category)}"><div class="result-update-time">${esc(match.time)}<small>Campo ${esc(match.court)} · gara ${esc(match.gameId)}</small></div><div class="result-update-main"><strong>${esc(expandMatchup(resolvedMatchup(match)))}</strong><p>${esc(resultText(match))}</p></div><span class="category-chip category-${esc(String(match.category).toLowerCase())}">${esc(match.category)}</span></button>`).join("");
     const more=changes.length>3?`<p class="result-toast-more">Altri ${changes.length-3} risultati aggiornati</p>`:"";
     $("resultToastBody").innerHTML=visible+more;
     $("resultToast").classList.add("visible");$("resultToast").setAttribute("aria-hidden","false");
@@ -700,6 +700,7 @@
   $("environmentInfo").textContent=`Configurazione attiva: ${config.label}. Database interno D1.`;
   document.querySelectorAll(".nav-item").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));button.classList.add("active");$(button.dataset.view).classList.add("active");}));
   document.addEventListener("click",event=>{
+    const destination=event.target.closest("[data-result-destination]");if(destination){const finals=destination.dataset.resultDestination==="finals",select=$(finals?"finalsCategory":"standingsCategory"),category=destination.dataset.resultCategory;if([...select.options].some(option=>option.value===category))select.value=category;saveSelections();finals?renderFinals():renderStandings();$(finals?"finalsTab":"standingsTab").click();hideResultToast();window.scrollTo({top:0,behavior:"smooth"});return;}
     const edit=event.target.closest("[data-edit-game]");if(edit){event.stopPropagation();openResultEditor(edit.dataset.editGame);return;}
     const editAdmin=event.target.closest("[data-admin-edit]");if(editAdmin){fillAdminForm(editAdmin.dataset.adminEdit,editAdmin.dataset.adminKey);return;}
     const deleteAdmin=event.target.closest("[data-admin-delete]");if(deleteAdmin){deleteAdminEntity(deleteAdmin.dataset.adminDelete,deleteAdmin.dataset.adminKey).catch(error=>showActionToast(error.message,"error"));return;}
