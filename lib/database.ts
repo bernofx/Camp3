@@ -22,9 +22,11 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS matches (game_id TEXT PRIMARY KEY, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', phase TEXT NOT NULL DEFAULT 'girone', match_date TEXT NOT NULL, match_time TEXT NOT NULL, court TEXT NOT NULL DEFAULT '', home_ref TEXT NOT NULL, away_ref TEXT NOT NULL, scorekeeper TEXT NOT NULL DEFAULT '', referee TEXT NOT NULL DEFAULT '', court_manager TEXT NOT NULL DEFAULT '', result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'scheduled')`,
   `CREATE TABLE IF NOT EXISTS final_links (target_game_id TEXT PRIMARY KEY, category_code TEXT NOT NULL, section_title TEXT NOT NULL DEFAULT 'Fase finale', section_order INTEGER NOT NULL DEFAULT 0, target_order INTEGER NOT NULL DEFAULT 0, home_kind TEXT NOT NULL, home_ref TEXT NOT NULL, away_kind TEXT NOT NULL, away_ref TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS result_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, category TEXT NOT NULL, result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', user_id INTEGER NOT NULL, created_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS notices (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, message TEXT NOT NULL, accent INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, created_by INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`,
   `CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(match_date, match_time)`,
   `CREATE INDEX IF NOT EXISTS idx_matches_category ON matches(category_code)`,
+  `CREATE INDEX IF NOT EXISTS idx_notices_created_at ON notices(created_at DESC)`,
 ];
 
 const categoryDefaults = [

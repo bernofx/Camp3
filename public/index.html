@@ -225,6 +225,12 @@
         <h3>Come vengono aggiornati i dati</h3>
         <p>L’app usa il proprio database per calendario e risultati. Se manca la rete, mostra l’ultima versione salvata sul dispositivo.</p>
       </article>
+      <section id="noticeAdmin" class="info-card notice-admin" hidden>
+        <p class="eyebrow">BACHECA AMMINISTRATORI</p>
+        <h3>Invia un avviso</h3>
+        <p>Gli utenti vedranno l’avviso nel tab Info e riceveranno una notifica nell’app al prossimo aggiornamento.</p>
+        <form id="noticeForm" class="notice-form"><label>Titolo<input name="title" maxlength="90" placeholder="es. Campo 4 indisponibile" required></label><label>Messaggio<textarea name="message" maxlength="500" placeholder="Indica la modifica, l’orario e le gare interessate." required></textarea></label><label class="notice-accent"><input name="accent" type="checkbox"> Avviso importante</label><button class="primary-action" type="submit">Pubblica avviso</button></form>
+      </section>
       <div id="noticeList"></div>
       <article class="info-card">
         <h3>Ambiente dati</h3>

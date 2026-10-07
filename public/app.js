@@ -44,6 +44,7 @@
   let desktopDirty = false;
   let desktopBaseFingerprint = "";
   let desktopSaveState = {kind:"saved",message:"Piano salvato nel database.",warnings:[]};
+  let desktopDragOffsetMinutes = 0;
   let configurationCandidate = null;
   let bulkStaffSelection = new Set();
   let themePreviewDirty = false;
@@ -197,15 +198,12 @@
     });
     Object.values(finalBrackets).forEach(sections=>{sections.sort((a,b)=>a.sectionOrder-b.sectionOrder);sections.forEach(section=>{Object.keys(section.early).forEach(key=>{section.early[key].sort((a,b)=>a.order-b.order);section.early[key]=[...new Set(section.early[key].map(item=>item.id))];});section.semis=[...new Set(section.semis)];section.finals.sort((a,b)=>a.order-b.order);section.finals=[...new Set(section.finals.map(item=>item.id))];});});
     sheetStandings={};
-    matchesCatalog=payload.matches.map(match=>({category:match.category,date:match.date,time:match.time,gameId:match.gameId,court:match.court,matchup:match.awayRef?`${match.homeRef} - ${match.awayRef}`:match.homeRef,scorekeeper:match.scorekeeper,referee:match.referee,courtManager:match.courtManager,result:match.result,sets:[match.set1||"",match.set2||"",match.set3||""],phase:match.phase,status:match.status,groupCode:match.groupCode}));
+    matchesCatalog=payload.matches.map(match=>({category:match.category,date:match.date,time:match.time,gameId:match.gameId,court:match.court,matchup:match.awayRef?`${match.homeRef} - ${match.awayRef}`:match.homeRef,scorekeeper:match.scorekeeper,referee:match.referee,courtManager:match.courtManager,result:match.result,sets:[match.set1||"",match.set2||"",match.set3||""],phase:match.phase,status:match.status,groupCode:match.groupCode}));notices=(payload.notices||[]).map(item=>({...item,accent:Boolean(item.accent)}));
     updatePlanVisibility();
     return matchesCatalog.filter(match=>match.status!=="draft"&&match.date&&match.time&&match.court);
   }
 
-  async function fetchNotices() {
-    if (config.noticesGid == null) return [];
-    return parseNoticeTable(await fetchGvizTable("notices",config.noticesGid,1));
-  }
+  async function fetchNotices() { return notices; }
 
   function mergeLive(live) {
     matches=live.map(item=>({...item}));
@@ -599,6 +597,7 @@
     $("adminTab").hidden=!currentUser;
     $("groupsTab").hidden=!currentUser;
     $("themeTab").hidden=!currentUser;
+    $("noticeAdmin").hidden=!currentUser;
     updatePlanVisibility();
     document.body.classList.toggle("admin-visible",Boolean(currentUser));
     $("loginButton").textContent=currentUser?`Esci · ${currentUser.username}`:"Accesso admin";
@@ -695,7 +694,7 @@
   }
 
   function renderNotices(){
-    $("noticeList").innerHTML=notices.map(item=>`<article class="info-card${item.accent?" accent":""}"><h3>${esc(item.title)}</h3><p>${esc(item.message)}</p></article>`).join("");
+    $("noticeList").innerHTML=notices.map(item=>`<article class="info-card${item.accent?" accent":""}"><div class="notice-head"><h3>${esc(item.title)}</h3>${currentUser?`<button type="button" data-delete-notice="${esc(item.id)}">Rimuovi</button>`:""}</div><p>${esc(item.message)}</p>${item.createdAt?`<small>${esc(new Date(item.createdAt).toLocaleString("it-IT",{dateStyle:"short",timeStyle:"short"}))}</small>`:""}</article>`).join("")||'<article class="info-card"><p>Nessun avviso pubblicato.</p></article>';
   }
 
   function changedResults(previous,current){
@@ -727,9 +726,8 @@
     setSync("","Sincronizzazione con il database…");
     const cacheKey=`volleystars-${config.activeName}`;
     const cached=JSON.parse(localStorage.getItem(cacheKey)||"null");
-    const noticeRequest=fetchNotices().catch(()=>cached?.notices||[]);
-    try{const live=await fetchLiveMatches();mergeLive(live);populateCategorySelectors();populateTeams();notices=await noticeRequest;const detected=cached?.matches?changedResults(cached.matches,matches):[];const changes=detected.filter(match=>!locallySavedResultIds.delete(String(match.gameId)));localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),matches,notices,standings:sheetStandings}));setSync("live",`Aggiornato ora · ${config.label}`);showResultToast(changes);}
-    catch(error){notices=await noticeRequest;if(cached?.matches){matches=cached.matches;sheetStandings=cached.standings||{};setSync("error",`Offline · dati salvati ${new Date(cached.at).toLocaleString("it-IT")}`);}else setSync("error",`Calendario offline · risultati non sincronizzati (${config.label})`);}
+    try{const live=await fetchLiveMatches();mergeLive(live);populateCategorySelectors();populateTeams();const detected=cached?.matches?changedResults(cached.matches,matches):[];const changes=detected.filter(match=>!locallySavedResultIds.delete(String(match.gameId))),knownNoticeIds=new Set((cached?.notices||[]).map(item=>String(item.id))),newNotice=notices.find(item=>item.id&&!knownNoticeIds.has(String(item.id))&&!sessionStorage.getItem(`volleystars-authored-notice-${item.id}`));localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),matches,notices,standings:sheetStandings}));setSync("live",`Aggiornato ora · ${config.label}`);showResultToast(changes);if(newNotice)showActionToast(newNotice.message,"warning",newNotice.title);}
+    catch(error){notices=cached?.notices||[];if(cached?.matches){matches=cached.matches;sheetStandings=cached.standings||{};setSync("error",`Offline · dati salvati ${new Date(cached.at).toLocaleString("it-IT")}`);}else setSync("error",`Calendario offline · risultati non sincronizzati (${config.label})`);}
     finally{syncing=false;}
     renderAgenda();renderTeams();renderStandings();renderFinals();renderNotices();if(currentUser){renderAdmin();renderGroupPlanner();renderDesktopPlanner();renderThemeEditor();}
   }
@@ -741,6 +739,7 @@
     const edit=event.target.closest("[data-edit-game]");if(edit){event.stopPropagation();openResultEditor(edit.dataset.editGame);return;}
     const editAdmin=event.target.closest("[data-admin-edit]");if(editAdmin){fillAdminForm(editAdmin.dataset.adminEdit,editAdmin.dataset.adminKey);return;}
     const deleteAdmin=event.target.closest("[data-admin-delete]");if(deleteAdmin){deleteAdminEntity(deleteAdmin.dataset.adminDelete,deleteAdmin.dataset.adminKey).catch(error=>showActionToast(error.message,"error"));return;}
+    const deleteNotice=event.target.closest("[data-delete-notice]");if(deleteNotice){if(confirm("Rimuovere questo avviso dalla bacheca?"))apiPost("/api/admin/notices",{action:"delete",data:{id:deleteNotice.dataset.deleteNotice}}).then(sync).catch(error=>showActionToast(error.message,"error"));return;}
     const generator=event.target.closest("[data-generate]");if(generator){generateSchedule(generator.dataset.generate).catch(()=>{});return;}
     const court=event.target.closest("[data-planner-court]");if(court){plannerSelectedCourt=court.dataset.plannerCourt;renderPlanner();return;}
     const add=event.target.closest("[data-planner-add]");if(add){plannerAdd(add.dataset.plannerAdd);return;}
@@ -752,13 +751,14 @@
     const card=event.target.closest(".match-card");if(card)toggleMatchCard(card);
   });
   document.addEventListener("keydown",event=>{const card=event.target.closest(".match-card");if(card&&(event.key==="Enter"||event.key===" ")){event.preventDefault();toggleMatchCard(card);}});
-  document.addEventListener("dragstart",event=>{const globalGame=event.target.closest("[data-global-game]"),game=event.target.closest("[data-planner-game]"),team=event.target.closest("[data-group-team]");if(globalGame&&event.dataTransfer){event.dataTransfer.setData("text/plain",`global:${globalGame.dataset.globalGame}`);event.dataTransfer.effectAllowed="move";}else if(game&&event.dataTransfer){event.dataTransfer.setData("text/plain",game.dataset.plannerGame);event.dataTransfer.effectAllowed="move";}else if(team&&event.dataTransfer){event.dataTransfer.setData("text/plain",`team:${team.dataset.groupTeam}`);event.dataTransfer.effectAllowed="move";}});
+  document.addEventListener("dragstart",event=>{const globalGame=event.target.closest("[data-global-game]"),game=event.target.closest("[data-planner-game]"),team=event.target.closest("[data-group-team]");if(globalGame&&event.dataTransfer){const duration=Number(settingsCatalog.match_duration_minutes||70),pixelsPerMinute=96/duration,rect=globalGame.getBoundingClientRect();desktopDragOffsetMinutes=Math.max(0,(event.clientY-rect.top)/pixelsPerMinute);event.dataTransfer.setData("text/plain",`global:${globalGame.dataset.globalGame}`);event.dataTransfer.effectAllowed="move";}else if(game&&event.dataTransfer){event.dataTransfer.setData("text/plain",game.dataset.plannerGame);event.dataTransfer.effectAllowed="move";}else if(team&&event.dataTransfer){event.dataTransfer.setData("text/plain",`team:${team.dataset.groupTeam}`);event.dataTransfer.effectAllowed="move";}});
   document.addEventListener("dragover",event=>{if(event.target.closest("[data-planner-drop],[data-group-drop],[data-global-drop]")){event.preventDefault();event.dataTransfer.dropEffect="move";}});
-  document.addEventListener("drop",event=>{if(!event.dataTransfer)return;const value=event.dataTransfer.getData("text/plain"),globalZone=event.target.closest("[data-global-drop]");if(globalZone&&value.startsWith("global:")){event.preventDefault();const [dayCode,court]=globalZone.dataset.globalDrop.split("|"),target=event.target.closest("[data-global-game]"),day=daysCatalog.find(item=>item.code===dayCode),duration=Number(settingsCatalog.match_duration_minutes||70),pixelsPerMinute=96/duration,rawMinutes=day?timeValue(day.startTime)+(event.clientY-globalZone.getBoundingClientRect().top)/pixelsPerMinute:0,snappedMinutes=Math.max(0,Math.round(rawMinutes/15)*15),requested=day?clockValue(snappedMinutes):"";moveDesktopGame(value.slice(7),dayCode,court,target?.dataset.globalGame||"",requested);return;}const groupZone=event.target.closest("[data-group-drop]");if(groupZone&&value.startsWith("team:")){event.preventDefault();moveTeamToGroup(value.slice(5),groupZone.dataset.groupDrop);return;}const zone=event.target.closest("[data-planner-drop]");if(!zone||value.startsWith("team:")||value.startsWith("global:"))return;event.preventDefault();plannerSelectedCourt=zone.dataset.plannerDrop;plannerAdd(value);});
+  document.addEventListener("drop",event=>{if(!event.dataTransfer)return;const value=event.dataTransfer.getData("text/plain"),globalZone=event.target.closest("[data-global-drop]");if(globalZone&&value.startsWith("global:")){event.preventDefault();const [dayCode,court]=globalZone.dataset.globalDrop.split("|"),day=daysCatalog.find(item=>item.code===dayCode),duration=Number(settingsCatalog.match_duration_minutes||70),pixelsPerMinute=96/duration,rawMinutes=day?timeValue(day.startTime)+(event.clientY-globalZone.getBoundingClientRect().top)/pixelsPerMinute-desktopDragOffsetMinutes:0,snappedMinutes=Math.max(0,Math.round(rawMinutes/15)*15),requested=day?clockValue(snappedMinutes):"";desktopDragOffsetMinutes=0;moveDesktopGame(value.slice(7),dayCode,court,"",requested);return;}const groupZone=event.target.closest("[data-group-drop]");if(groupZone&&value.startsWith("team:")){event.preventDefault();moveTeamToGroup(value.slice(5),groupZone.dataset.groupDrop);return;}const zone=event.target.closest("[data-planner-drop]");if(!zone||value.startsWith("team:")||value.startsWith("global:"))return;event.preventDefault();plannerSelectedCourt=zone.dataset.plannerDrop;plannerAdd(value);});
   document.addEventListener("change",event=>{const time=event.target.closest("[data-global-time]");if(time){if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)){showActionToast("Inserisci l’orario nel formato 24 ore HH:MM, per esempio 14:30.","error");renderDesktopPlanner();return;}const current=desktopDraft.get(time.dataset.globalTime)||{};desktopDraft.set(time.dataset.globalTime,{...current,time:time.value});markDesktopDraft();renderDesktopPlanner();return;}const select=event.target.closest("[data-team-group-select]");if(select)moveTeamToGroup(select.dataset.teamGroupSelect,select.value);const bulk=event.target.closest("[data-bulk-game]");if(bulk){bulk.checked?bulkStaffSelection.add(bulk.dataset.bulkGame):bulkStaffSelection.delete(bulk.dataset.bulkGame);}});
   $("categoryFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("courtFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("upcomingOnly").addEventListener("change",()=>{saveSelections();renderAgenda();});$("teamSelect").addEventListener("change",()=>{saveSelections();updateTeamSelectColor();renderTeams();});$("standingsCategory").addEventListener("change",()=>{saveSelections();renderStandings();});$("finalsCategory").addEventListener("change",()=>{saveSelections();renderFinals();});$("groupPlannerCategory").addEventListener("change",()=>{saveSelections();renderGroupPlanner();});$("refreshButton").addEventListener("click",sync);$("resultToastClose").addEventListener("click",hideResultToast);$("actionToastClose").addEventListener("click",hideActionToast);
   $("loginButton").addEventListener("click",async()=>{if(currentUser){await apiPost("/api/auth/logout",{});setAuth(null);}else{$("loginError").textContent="";$("loginDialog").showModal();}});
   $("loginForm").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());try{const payload=await apiPost("/api/auth/login",data);$("loginDialog").close();form.reset();setAuth(payload.user);}catch(error){$("loginError").textContent=error.message;}});
+  $("noticeForm").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());showActionToast("Pubblicazione dell’avviso…","busy");try{const payload=await apiPost("/api/admin/notices",{action:"create",data});if(payload.noticeId)sessionStorage.setItem(`volleystars-authored-notice-${payload.noticeId}`,"1");form.reset();await sync();showActionToast(payload.message||"Avviso pubblicato.");}catch(error){showActionToast(error.message,"error");}});
   $("resultForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());showActionToast("Salvataggio del risultato…","busy");try{await apiPost("/api/results",{gameId:data.gameId,category:data.category,result:data.result,sets:[data.set1,data.set2,data.set3]});locallySavedResultIds.add(String(data.gameId));$("resultDialog").close();await sync();showActionToast(`Risultato della gara ${data.gameId} salvato.`);}catch(error){$("resultError").textContent=error.message;showActionToast(error.message,"error");}});
   [["settingsForm","settings"],["courtForm","court"],["dayForm","day"],["categoryForm","category"],["groupForm","group"],["teamForm","team"],["staffForm","staff"],["allocationForm","allocation"]].forEach(([id,entity])=>$(id).addEventListener("submit",async event=>{event.preventDefault();try{await saveAdminEntity(entity,event.currentTarget);}catch(error){showActionToast(error.message,"error");}}));
   $("categoryForm").elements.code.addEventListener("input",updateAdmissionAdvice);$("categoryForm").elements.admissionMethod.addEventListener("change",updateAdmissionAdvice);$("categoryForm").elements.entryRound.addEventListener("change",updateAdmissionAdvice);$("categoryForm").elements.placementMode.addEventListener("change",updateAdmissionAdvice);
