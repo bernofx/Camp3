@@ -16,7 +16,7 @@
     <section class="entry-card" id="entryCard" hidden>
       <p class="intro">Scegli la gara, fotografa il referto e invialo. Il risultato verrà pubblicato solo dopo la verifica di un amministratore.</p>
       <form id="scoreEntryForm">
-        <label>Gara<select id="entryGame" name="gameId" required></select></label>
+        <label id="entryGameField">Gara<select id="entryGame" name="gameId" required></select></label>
         <article id="entryGameInfo" class="game-info"></article>
         <fieldset class="staff-fields"><legend>Staff presente (facoltativo)</legend><p>Se una persona non è in elenco, scegli “Inserisci un nome” e scrivila direttamente.</p>
           <label>Refertista<select name="scorekeeperName" id="scorekeeperName"><option value="">Non indicato</option></select></label><label class="staff-custom-name" data-staff-custom="scorekeeperName" hidden>Nome del refertista<input name="scorekeeperCustomName" autocomplete="name" maxlength="80" placeholder="Nome e cognome"></label>

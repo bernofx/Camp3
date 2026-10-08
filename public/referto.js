@@ -19,7 +19,8 @@
       setupStaffSelector("scorekeeperName", (payload.staff||[]).filter(item => Number(item.canScorekeeper)).map(item => item.name));
       setupStaffSelector("refereeName", (payload.staff||[]).filter(item => Number(item.canReferee)).map(item => item.name));
       setupStaffSelector("courtManagerName", (payload.staff||[]).filter(item => Number(item.canCourtManager)).map(item => item.name));
-      window.VolleyStarsMatchPicker.mount($("entryGame"), candidates, { label: game => `Gara ${game.gameId} · ${game.category}`, matchup: game => gameTeams(game), day: game => game.date || "Senza giorno", meta: game => `${game.date || "data da definire"} · ${game.time || "--:--"} · Campo ${game.court || "–"}`, tint: game => palette[game.category] || "#ff9900" }); renderGame(); $("entryCard").hidden = false;
+      if (payload.kind === "match") { $("entryGame").innerHTML = `<option value="${escapeHtml(candidates[0].gameId)}">${escapeHtml(gameLabel(candidates[0]))}</option>`; $("entryGameField").hidden = true; }
+      else window.VolleyStarsMatchPicker.mount($("entryGame"), candidates, { label: game => `Gara ${game.gameId} · ${game.category}`, matchup: game => gameTeams(game), day: game => game.date || "Senza giorno", meta: game => `${game.date || "data da definire"} · ${game.time || "--:--"} · Campo ${game.court || "–"}`, tint: game => palette[game.category] || "#ff9900", preserveOrder: true, group: game => game.isPrimaryCourt ? `Campo ${payload.reference} · consigliate` : "Altri campi" }); renderGame(); $("entryCard").hidden = false;
     } catch (error) { $("entryFailureText").textContent = error.message || "QR non disponibile."; $("entryFailure").hidden = false; }
   }
   $("entryGame").addEventListener("change", renderGame);

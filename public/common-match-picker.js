@@ -19,6 +19,7 @@
     const day = options.day || (item => item.dayCode || item.date || "Senza giorno");
     const meta = options.meta || (item => `${day(item)} · ${item.time || "--:--"} · Campo ${item.court || "–"}`);
     const tint = options.tint || (() => "#ff9900");
+    const groupFor = options.group || (item => `${day(item)} · Campo ${item.court || "–"}`);
     const old = select.nextElementSibling;
     if (old?.classList.contains("common-match-picker")) old.remove();
     select.innerHTML = items.map(item => `<option value="${esc(item.gameId)}">${esc(label(item))}</option>`).join("");
@@ -44,9 +45,9 @@
       fill(categoryFilter, distinct(item => item.category || ""), "Tutte le categorie", item => item.category || "", item => item.category || "—");
     };
     const render = () => {
-      const query = search.value.trim().toLocaleLowerCase("it"), filtered = items.filter(item => (!query || `${item.gameId} ${item.category || ""} ${matchup(item)} ${day(item)} ${item.court || ""} ${item.time || ""}`.toLocaleLowerCase("it").includes(query)) && (!dayFilter.value || day(item) === dayFilter.value) && (!courtFilter.value || String(item.court || "") === courtFilter.value) && (!categoryFilter.value || (item.category || "") === categoryFilter.value)).sort((a,b) => `${a.date || "9999"}|${a.time || "99:99"}|${a.gameId}`.localeCompare(`${b.date || "9999"}|${b.time || "99:99"}|${b.gameId}`));
+      const query = search.value.trim().toLocaleLowerCase("it"); let filtered = items.filter(item => (!query || `${item.gameId} ${item.category || ""} ${matchup(item)} ${day(item)} ${item.court || ""} ${item.time || ""}`.toLocaleLowerCase("it").includes(query)) && (!dayFilter.value || day(item) === dayFilter.value) && (!courtFilter.value || String(item.court || "") === courtFilter.value) && (!categoryFilter.value || (item.category || "") === categoryFilter.value)); if (!options.preserveOrder) filtered = filtered.sort((a,b) => `${a.date || "9999"}|${a.time || "99:99"}|${a.gameId}`.localeCompare(`${b.date || "9999"}|${b.time || "99:99"}|${b.gameId}`));
       let group = "", html = "";
-      for (const item of filtered) { const groupName = `${day(item)} · Campo ${item.court || "–"}`; if (groupName !== group) { group = groupName; html += `<div class="common-match-picker-group">${esc(group)}</div>`; } html += `<button type="button" class="common-match-picker-option${item.gameId === select.value ? " selected" : ""}" data-game-id="${esc(item.gameId)}" style="--common-picker-color:${esc(tint(item))}"><span class="common-match-picker-time">${esc(item.time || "--:--")}<small>${esc(item.category || "")}</small></span><span><strong>${esc(label(item))}</strong><small>${esc(meta(item))} · ${esc(matchup(item))}</small></span></button>`; }
+      for (const item of filtered) { const groupName = groupFor(item); if (groupName !== group) { group = groupName; html += `<div class="common-match-picker-group">${esc(group)}</div>`; } html += `<button type="button" class="common-match-picker-option${item.gameId === select.value ? " selected" : ""}" data-game-id="${esc(item.gameId)}" style="--common-picker-color:${esc(tint(item))}"><span class="common-match-picker-time">${esc(item.time || "--:--")}<small>${esc(item.category || "")}</small></span><span><strong>${esc(label(item))}</strong><small>${esc(meta(item))} · ${esc(matchup(item))}</small></span></button>`; }
       results.innerHTML = html || '<p class="common-match-picker-empty">Nessuna gara corrisponde ai filtri.</p>';
     };
     trigger.addEventListener("click", () => { const opening = panel.hidden; close(); if (opening) { panel.hidden = false; trigger.setAttribute("aria-expanded", "true"); opened = {root, trigger, panel}; render(); setTimeout(() => search.focus(), 0); } });
