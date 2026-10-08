@@ -60,6 +60,8 @@
   let bulkStaffSelection = new Set();
   let themePreviewDirty = false;
   let openMatchPicker = null;
+  let viewHistoryReady = false;
+  let scrollHistoryFrame = 0;
 
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -485,9 +487,19 @@
 
   const italianDate=value=>{if(!value)return "";const [y,m,d]=value.split("-");return y&&m&&d?`${d}/${m}/${y}`:value;};
 
+  function viewButton(viewId){return [...document.querySelectorAll(".nav-item")].find(button=>button.dataset.view===viewId);}
+  function activateView(button,{historyMode="push",scrollY=0}={}){
+    if(!button||button.hidden||!$(button.dataset.view))return;
+    const nextView=button.dataset.view,currentView=document.querySelector(".view.active")?.id||"agendaView";
+    if(viewHistoryReady&&historyMode==="push"&&nextView!==currentView){history.replaceState({...history.state,volleystarsView:currentView,volleystarsScrollY:window.scrollY},"");history.pushState({volleystarsView:nextView,volleystarsScrollY:0},"");}
+    else if(viewHistoryReady&&historyMode==="replace")history.replaceState({...history.state,volleystarsView:nextView,volleystarsScrollY:scrollY},"");
+    document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));button.classList.add("active");$(nextView).classList.add("active");if(button.id==="infoTab")markNoticesRead();
+    requestAnimationFrame(()=>window.scrollTo({top:Math.max(0,Number(scrollY)||0),behavior:"auto"}));
+  }
+
   function updatePlanVisibility(){
     const confirmed=String(settingsCatalog.plan_confirmed||"0")==="1",hasMatches=matchesCatalog.length>0,standingsTab=$("standingsTab"),plannerTab=$("plannerTab"),desktopTab=$("desktopPlannerTab");if(standingsTab)standingsTab.hidden=!confirmed;if(plannerTab)plannerTab.hidden=!currentUser||!hasMatches;if(desktopTab)desktopTab.hidden=!currentUser||!hasMatches;
-    if((!confirmed&&$("standingsView")?.classList.contains("active"))||(!hasMatches&&[$("plannerView"),$("desktopPlannerView")].some(view=>view?.classList.contains("active")))){document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));$("agendaTab").classList.add("active");$("agendaView").classList.add("active");}
+    if((!confirmed&&$("standingsView")?.classList.contains("active"))||(!hasMatches&&[$("plannerView"),$("desktopPlannerView")].some(view=>view?.classList.contains("active"))))activateView($("agendaTab"),{historyMode:"replace"});
   }
 
   function renderGroupPlanner(){
@@ -641,7 +653,7 @@
     updatePlanVisibility();
     document.body.classList.toggle("admin-visible",Boolean(currentUser));
     $("loginButton").textContent=currentUser?`Esci · ${currentUser.username}`:"Accesso admin";
-    if(!currentUser&&[$("adminView"),$("groupsView"),$("plannerView"),$("desktopPlannerView"),$("themeView")].some(view=>view.classList.contains("active"))){document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));$("agendaTab").classList.add("active");$("agendaView").classList.add("active");}
+    if(!currentUser&&[$("adminView"),$("groupsView"),$("plannerView"),$("desktopPlannerView"),$("themeView")].some(view=>view.classList.contains("active")))activateView($("agendaTab"),{historyMode:"replace"});
     renderAgenda();renderTeams();
     if(currentUser){renderAdmin();renderGroupPlanner();renderDesktopPlanner();renderThemeEditor();loadIncidentHistory();}
   }
@@ -778,7 +790,10 @@
   }
 
   $("environmentInfo").textContent=`Configurazione attiva: ${config.label}. Database interno D1.`;
-  document.querySelectorAll(".nav-item").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));button.classList.add("active");$(button.dataset.view).classList.add("active");if(button.id==="infoTab")markNoticesRead();}));
+  document.querySelectorAll(".nav-item").forEach(button=>button.addEventListener("click",()=>activateView(button)));
+  history.replaceState({...history.state,volleystarsView:document.querySelector(".view.active")?.id||"agendaView",volleystarsScrollY:window.scrollY},"");viewHistoryReady=true;
+  window.addEventListener("popstate",event=>{const requested=viewButton(event.state?.volleystarsView||"agendaView"),button=requested&&!requested.hidden?requested:$("agendaTab");activateView(button,{historyMode:"none",scrollY:event.state?.volleystarsScrollY||0});});
+  window.addEventListener("scroll",()=>{if(!viewHistoryReady||scrollHistoryFrame)return;scrollHistoryFrame=requestAnimationFrame(()=>{scrollHistoryFrame=0;const currentView=document.querySelector(".view.active")?.id||"agendaView";history.replaceState({...history.state,volleystarsView:currentView,volleystarsScrollY:window.scrollY},"");});},{passive:true});
   document.addEventListener("click",event=>{
     const accountMenu=$("accountMenu");if(accountMenu.open&&!event.target.closest("#accountMenu"))accountMenu.open=false;
     const pickerToggle=event.target.closest(".match-picker-trigger");if(pickerToggle){const picker=pickerToggle.closest(".match-picker"),panel=picker.querySelector(".match-picker-panel"),opening=panel.hidden;closeMatchPicker();if(opening){panel.hidden=false;pickerToggle.setAttribute("aria-expanded","true");openMatchPicker=picker;renderMatchPickerResults(picker);setTimeout(()=>picker.querySelector("[data-match-search]").focus(),0);}return;}
