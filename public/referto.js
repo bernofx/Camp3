@@ -4,7 +4,9 @@
   const text = value => String(value || "").trim();
   const escapeHtml = value => text(value).replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[char]);
   const palette = {U13:"#ff9900",U14:"#37a9e1",U15:"#80b24b",U17:"#c970ad"};
-  const gameLabel = game => `Gara ${game.gameId} · ${game.category} · ${game.homeRef}${game.awayRef ? ` – ${game.awayRef}` : ""}`;
+  const teamLabel = (name, code) => name && name !== code ? `${name} (${code})` : (name || code || "Da definire");
+  const gameTeams = game => `${teamLabel(game.homeName,game.homeRef)}${game.awayRef ? ` – ${teamLabel(game.awayName,game.awayRef)}` : ""}`;
+  const gameLabel = game => `Gara ${game.gameId} · ${game.category} · ${gameTeams(game)}`;
   const renderGame = () => { const game = candidates.find(item => item.gameId === $("entryGame").value); $("entryGameInfo").textContent = game ? `${gameLabel(game)} · ${game.date || "data da definire"} ${game.time || ""} · Campo ${game.court || "–"}${game.status === "live" ? " · In corso" : ""}` : ""; };
   const setupStaffSelector = (id, names) => { const select = $(id); select.innerHTML = `<option value="">Non indicato</option>${names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")}<option value="__custom__">Inserisci un nome…</option>`; const update = () => { const field = document.querySelector(`[data-staff-custom="${id}"]`); field.hidden = select.value !== "__custom__"; if (field.hidden) field.querySelector("input").value = ""; }; select.addEventListener("change", update); update(); };
   const staffValue = (data, selectName, customName) => { const selected = text(data.get(selectName)); return selected === "__custom__" ? text(data.get(customName)) : selected; };
@@ -16,7 +18,7 @@
       setupStaffSelector("scorekeeperName", (payload.staff||[]).filter(item => Number(item.canScorekeeper)).map(item => item.name));
       setupStaffSelector("refereeName", (payload.staff||[]).filter(item => Number(item.canReferee)).map(item => item.name));
       setupStaffSelector("courtManagerName", (payload.staff||[]).filter(item => Number(item.canCourtManager)).map(item => item.name));
-      window.VolleyStarsMatchPicker.mount($("entryGame"), candidates, { label: game => `Gara ${game.gameId} · ${game.category}`, matchup: game => `${game.homeRef}${game.awayRef ? ` – ${game.awayRef}` : ""}`, day: game => game.date || "Senza giorno", meta: game => `${game.date || "data da definire"} · ${game.time || "--:--"} · Campo ${game.court || "–"}`, tint: game => palette[game.category] || "#ff9900" }); renderGame(); $("entryCard").hidden = false;
+      window.VolleyStarsMatchPicker.mount($("entryGame"), candidates, { label: game => `Gara ${game.gameId} · ${game.category}`, matchup: game => gameTeams(game), day: game => game.date || "Senza giorno", meta: game => `${game.date || "data da definire"} · ${game.time || "--:--"} · Campo ${game.court || "–"}`, tint: game => palette[game.category] || "#ff9900" }); renderGame(); $("entryCard").hidden = false;
     } catch (error) { $("entryFailureText").textContent = error.message || "QR non disponibile."; $("entryFailure").hidden = false; }
   }
   $("entryGame").addEventListener("change", renderGame);
