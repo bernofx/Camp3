@@ -1,0 +1,29 @@
+input::placeholder {
+  color: #9ca7b1;
+  font-weight: 400;
+  opacity: .5;
+}
+
+.staff-fields {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  border: 1px solid #dce3e8;
+  border-radius: 14px;
+  padding: 14px;
+  background: #f8fafb;
+}
+
+.staff-fields legend {
+  padding: 0 6px;
+  color: #11263f;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.staff-fields > p {
+  margin: 0;
+  color: #68717c;
+  font-size: 12px;
+  line-height: 1.4;
+}

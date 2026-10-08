@@ -16,8 +16,11 @@ export async function GET(request: Request) {
   if (!access) return json({ error: "QR non valido o revocato." }, 404);
   const state = String((await database().prepare("SELECT value FROM tournament_settings WHERE key='tournament_state'").first<{value:string}>())?.value || "planning");
   if (state !== "live") return json({ error: state === "closed" ? "Il torneo è concluso." : "Il torneo non è ancora iniziato." }, 409);
-  const all = await database().prepare("SELECT m.game_id AS gameId,m.category_code AS category,m.phase,m.match_date AS date,m.match_time AS time,m.court,m.home_ref AS homeRef,m.away_ref AS awayRef,m.status,c.name AS categoryName FROM matches m LEFT JOIN categories c ON c.code=m.category_code WHERE m.result='' AND m.status<>'completed' ORDER BY CASE WHEN m.status='live' THEN 0 ELSE 1 END,m.match_date,m.match_time,m.game_id").all<any>();
+  const [all,staff] = await Promise.all([
+    database().prepare("SELECT m.game_id AS gameId,m.category_code AS category,m.phase,m.match_date AS date,m.match_time AS time,m.court,m.home_ref AS homeRef,m.away_ref AS awayRef,m.status,c.name AS categoryName FROM matches m LEFT JOIN categories c ON c.code=m.category_code WHERE m.result='' AND m.status<>'completed' ORDER BY CASE WHEN m.status='live' THEN 0 ELSE 1 END,m.match_date,m.match_time,m.game_id").all<any>(),
+    database().prepare("SELECT name,can_referee AS canReferee,can_scorekeeper AS canScorekeeper,can_court_manager AS canCourtManager FROM staff WHERE active=1 ORDER BY name").all<any>(),
+  ]);
   const games = (all.results as any[]).sort((a, b) => Number(String(a.court) !== access.reference) - Number(String(b.court) !== access.reference) || a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   const candidates = access.kind === "match" ? games.filter(game => game.gameId === access.reference) : games;
-  return json({ ok: true, label: access.label, kind: access.kind, candidates });
+  return json({ ok: true, label: access.label, kind: access.kind, candidates, staff: staff.results });
 }

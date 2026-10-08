@@ -4,7 +4,7 @@ import { database, ensureDatabase } from "../../../lib/database";
 export async function GET() {
   await ensureDatabase();
   const db = database();
-  const [categories,groups,teams,courts,days,staff,settings,matches,finalLinks,notices,withdrawals] = await Promise.all([
+  const [categories,groups,teams,courts,days,staff,settings,matches,finalLinks,notices,withdrawals,rankingResolutions] = await Promise.all([
     db.prepare("SELECT c.code,c.name,c.color,c.sort_order AS sortOrder,COALESCE(s.admission_method,'top2_each') AS admissionMethod,COALESCE(s.placement_mode,'top2') AS placementMode,COALESCE(s.entry_round,'semifinals') AS entryRound,COALESCE(s.home_and_away,0) AS homeAndAway FROM categories c LEFT JOIN category_settings s ON s.category_code=c.code WHERE c.active=1 ORDER BY c.sort_order,c.code").all(),
     db.prepare("SELECT id,category_code AS categoryCode,code,name,sort_order AS sortOrder FROM tournament_groups ORDER BY category_code,sort_order,code").all(),
     db.prepare("SELECT code,name,category_code AS categoryCode,group_code AS groupCode FROM teams WHERE active=1 ORDER BY category_code,group_code,name").all(),
@@ -16,6 +16,7 @@ export async function GET() {
     db.prepare(`SELECT target_game_id AS targetGameId,category_code AS categoryCode,section_title AS sectionTitle,section_order AS sectionOrder,target_order AS targetOrder,home_kind AS homeKind,home_ref AS homeRef,away_kind AS awayKind,away_ref AS awayRef FROM final_links ORDER BY category_code,section_order,target_order`).all(),
     db.prepare(`SELECT id,title,message,accent,created_at AS createdAt FROM notices ORDER BY created_at DESC,id DESC LIMIT 20`).all(),
     db.prepare(`SELECT team_code AS teamCode,reason,created_at AS createdAt FROM team_withdrawals ORDER BY created_at DESC`).all(),
+    db.prepare(`SELECT id,category_code AS categoryCode,group_code AS groupCode,team_a AS teamA,team_b AS teamB,resolution_type AS resolutionType,preferred_team_code AS preferredTeamCode,playoff_game_id AS playoffGameId,note,created_at AS createdAt,updated_at AS updatedAt FROM ranking_resolutions ORDER BY category_code,group_code,id`).all(),
   ]);
-  return json({ok:true,categories:categories.results,groups:groups.results,teams:teams.results,courts:courts.results,days:days.results,staff:staff.results,settings:Object.fromEntries(settings.results.map((item:any)=>[item.key,item.value])),matches:matches.results,finalLinks:finalLinks.results,notices:notices.results,withdrawals:withdrawals.results});
+  return json({ok:true,categories:categories.results,groups:groups.results,teams:teams.results,courts:courts.results,days:days.results,staff:staff.results,settings:Object.fromEntries(settings.results.map((item:any)=>[item.key,item.value])),matches:matches.results,finalLinks:finalLinks.results,notices:notices.results,withdrawals:withdrawals.results,rankingResolutions:rankingResolutions.results});
 }

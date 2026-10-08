@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#11263f">
   <meta name="robots" content="noindex,nofollow">
   <link rel="stylesheet" href="referto.css">
+  <link rel="stylesheet" href="referto-extra.css">
   <title>Invia referto · VolleyStars</title>
 </head>
 <body>
@@ -16,9 +17,13 @@
       <form id="scoreEntryForm">
         <label>Gara<select id="entryGame" name="gameId" required></select></label>
         <article id="entryGameInfo" class="game-info"></article>
-        <label>Nome del refertista<input name="scorekeeperName" autocomplete="name" maxlength="80" required placeholder="Nome e cognome"></label>
+        <fieldset class="staff-fields"><legend>Staff presente (facoltativo)</legend><p>Può compilarlo il responsabile di campo. Se un nome non è nell’elenco, scrivilo direttamente.</p>
+          <label>Refertista<input name="scorekeeperName" list="scorekeepers" autocomplete="name" maxlength="80" placeholder="Nome e cognome"><datalist id="scorekeepers"></datalist></label>
+          <label>Arbitro<input name="refereeName" list="referees" maxlength="80" placeholder="Nome e cognome"><datalist id="referees"></datalist></label>
+          <label>Responsabile di campo<input name="courtManagerName" list="courtManagers" maxlength="80" placeholder="Nome e cognome"><datalist id="courtManagers"></datalist></label>
+        </fieldset>
         <label>Risultato finale<input name="result" inputmode="numeric" required placeholder="es. 2-1"></label>
-        <div class="sets"><label>1° set<input name="set1" inputmode="numeric" placeholder="25-20"></label><label>2° set<input name="set2" inputmode="numeric" placeholder="25-18"></label><label>3° set<input name="set3" inputmode="numeric" placeholder="15-12"></label></div>
+        <div class="sets"><label>1° set<input name="set1" inputmode="numeric" placeholder="es. 25-20"></label><label>2° set<input name="set2" inputmode="numeric" placeholder="es. 25-18"></label><label>3° set<input name="set3" inputmode="numeric" placeholder="es. 15-12"></label></div>
         <label>Foto del referto<input name="photo" type="file" accept="image/jpeg,image/png" capture="environment" required><small>JPEG o PNG, massimo 8 MB. Inquadra soltanto il referto.</small></label>
         <p id="entryError" role="alert"></p>
         <button id="entrySubmit" type="submit">Invia per verifica</button>

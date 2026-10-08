@@ -24,10 +24,11 @@ export async function POST(request: Request) {
   if (!(["court", "match"] as string[]).includes(kind) || !reference) return json({ error: "Seleziona un campo o una gara." }, 400);
   const valid = kind === "court"
     ? await db().prepare("SELECT code,name FROM courts WHERE code=? AND active=1").bind(reference).first<any>()
-    : await db().prepare("SELECT game_id AS code,category_code AS name FROM matches WHERE game_id=?").bind(reference).first<any>();
+    : await db().prepare("SELECT m.game_id AS code,m.category_code AS category,m.match_date AS date,m.match_time AS time,m.court,m.home_ref AS homeRef,m.away_ref AS awayRef,COALESCE(h.name,m.home_ref) AS homeName,COALESCE(a.name,m.away_ref) AS awayName FROM matches m LEFT JOIN teams h ON h.code=m.home_ref LEFT JOIN teams a ON a.code=m.away_ref WHERE m.game_id=?").bind(reference).first<any>();
   if (!valid) return json({ error: "Riferimento QR non disponibile." }, 404);
-  const token = createQrToken(), tokenHash = await hashQrToken(token), label = text(payload.label) || (kind === "court" ? valid.name : `Gara ${valid.code} · ${valid.name}`), now = new Date().toISOString();
+  const token = createQrToken(), tokenHash = await hashQrToken(token), label = text(payload.label) || (kind === "court" ? valid.name : `Gara ${valid.code} · ${valid.category}`), now = new Date().toISOString();
   await db().prepare("INSERT INTO qr_access_tokens(token_hash,kind,reference,label,active,created_by,created_at) VALUES(?,?,?,?,1,?,?)").bind(tokenHash, kind, reference, label, user.id, now).run();
   const url = new URL("/referto.html", request.url); url.searchParams.set("token", token);
-  return json({ ok: true, token: { kind, reference, label, url: url.toString() }, message: "QR creato. Stampalo o condividilo sul tavolo del campo." });
+  const printTitle=kind==="court"?`QR Campo ${valid.code}`:`${valid.category} · Gara ${valid.code}`,printSubtitle=kind==="court"?valid.name:`${valid.homeName} – ${valid.awayName} · ${valid.date||"data da definire"} ${valid.time||""} · Campo ${valid.court||"–"}`;
+  return json({ ok: true, token: { kind, reference, label, url: url.toString(), printTitle, printSubtitle }, message: "QR creato. Selezionalo per stamparlo insieme agli altri." });
 }

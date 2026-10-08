@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -59,6 +59,8 @@ export const scoreSubmissions = sqliteTable("score_submissions", {
   gameId: text("game_id").notNull(),
   categoryCode: text("category_code").notNull(),
   scorekeeperName: text("scorekeeper_name").notNull(),
+  refereeName: text("referee_name").notNull().default(""),
+  courtManagerName: text("court_manager_name").notNull().default(""),
   result: text("result").notNull().default(""),
   set1: text("set_1").notNull().default(""),
   set2: text("set_2").notNull().default(""),
@@ -72,3 +74,18 @@ export const scoreSubmissions = sqliteTable("score_submissions", {
   reviewedBy: integer("reviewed_by").references(() => users.id),
   reviewNote: text("review_note").notNull().default(""),
 });
+
+export const rankingResolutions = sqliteTable("ranking_resolutions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  categoryCode: text("category_code").notNull(),
+  groupCode: text("group_code").notNull(),
+  teamA: text("team_a").notNull(),
+  teamB: text("team_b").notNull(),
+  resolutionType: text("resolution_type").notNull(),
+  preferredTeamCode: text("preferred_team_code").notNull().default(""),
+  playoffGameId: text("playoff_game_id").notNull().default(""),
+  note: text("note").notNull().default(""),
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, table => ({ pair: uniqueIndex("ranking_resolutions_pair_unique").on(table.categoryCode, table.groupCode, table.teamA, table.teamB) }));
