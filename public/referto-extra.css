@@ -37,3 +37,4 @@ input::placeholder {
 .staff-custom-name[hidden] {
   display: none;
 }
+.my-receipts{margin-top:16px}.my-receipts>p{color:#667085;font-size:13px;line-height:1.45}.my-receipt{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-top:1px solid #dfe5e8}.my-receipt strong,.my-receipt small{display:block}.my-receipt small{margin-top:3px;color:#667085;font-size:11px;line-height:1.35}.my-receipt>div:last-child{display:flex;gap:7px}.my-receipt button{border:1px solid #c9d5de;border-radius:8px;padding:8px 9px;background:#fff;color:#11263f;font-size:11px;font-weight:800}.my-receipt button:last-child{border-color:#efb1aa;color:#b42318}

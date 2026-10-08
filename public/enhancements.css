@@ -58,3 +58,14 @@
   .qr-print-card img { width: 68mm; height: 68mm; }
   .qr-print-card small { margin-top: 3mm; font: 8pt Arial,sans-serif; overflow-wrap: anywhere; }
 }
+/* Archivio referti: ricerca, conservazione e pulizia fotografica. */
+.submission-card{background:var(--submission-tint,#fbfcfd)}
+.submission-photo-missing{display:grid;width:78px;height:62px;place-items:center;border-radius:9px;background:#eef1f4;color:var(--muted);font-size:10px;font-weight:800;text-align:center}
+.submission-card .submission-code{color:var(--navy);font-weight:900;letter-spacing:.04em}
+.submission-photo-link span{display:block;padding:30px 16px;color:var(--muted);font-size:13px;font-weight:800;text-align:center}
+.submission-tools{display:flex;flex-wrap:wrap;align-items:end;gap:8px}
+.submission-tools label{display:grid;gap:4px;color:var(--muted);font-size:11px;font-weight:900}
+.submission-tools input,.submission-tools select{min-width:115px;border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff;color:var(--ink);font:inherit}
+.submission-cleanup{display:flex;align-items:center;gap:10px;border-radius:11px;padding:10px;background:#fff8f6}
+.submission-cleanup button,.danger-action{border:0;border-radius:9px;padding:9px 11px;background:#b42318;color:#fff;font-size:11px;font-weight:900;cursor:pointer}
+.submission-cleanup small{color:#77443f;font-size:11px;line-height:1.35}

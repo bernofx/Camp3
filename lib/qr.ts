@@ -16,7 +16,6 @@ export function createQrToken() {
 }
 
 export function createPublicCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const random = crypto.getRandomValues(new Uint8Array(6));
-  return `REF-${[...random].map(value => alphabet[value % alphabet.length]).join("")}`;
+  const random = crypto.getRandomValues(new Uint32Array(1))[0];
+  return String(random % 1_000_000).padStart(6, "0");
 }
