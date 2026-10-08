@@ -7,6 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <link rel="stylesheet" href="referto.css">
   <link rel="stylesheet" href="referto-extra.css">
+  <link rel="stylesheet" href="common-match-picker.css">
   <title>Invia referto · VolleyStars</title>
 </head>
 <body>
@@ -17,10 +18,10 @@
       <form id="scoreEntryForm">
         <label>Gara<select id="entryGame" name="gameId" required></select></label>
         <article id="entryGameInfo" class="game-info"></article>
-        <fieldset class="staff-fields"><legend>Staff presente (facoltativo)</legend><p>Può compilarlo il responsabile di campo. Se un nome non è nell’elenco, scrivilo direttamente.</p>
-          <label>Refertista<input name="scorekeeperName" list="scorekeepers" autocomplete="name" maxlength="80" placeholder="Nome e cognome"><datalist id="scorekeepers"></datalist></label>
-          <label>Arbitro<input name="refereeName" list="referees" maxlength="80" placeholder="Nome e cognome"><datalist id="referees"></datalist></label>
-          <label>Responsabile di campo<input name="courtManagerName" list="courtManagers" maxlength="80" placeholder="Nome e cognome"><datalist id="courtManagers"></datalist></label>
+        <fieldset class="staff-fields"><legend>Staff presente (facoltativo)</legend><p>Se una persona non è in elenco, scegli “Inserisci un nome” e scrivila direttamente.</p>
+          <label>Refertista<select name="scorekeeperName" id="scorekeeperName"><option value="">Non indicato</option></select></label><label class="staff-custom-name" data-staff-custom="scorekeeperName" hidden>Nome del refertista<input name="scorekeeperCustomName" autocomplete="name" maxlength="80" placeholder="Nome e cognome"></label>
+          <label>Arbitro<select name="refereeName" id="refereeName"><option value="">Non indicato</option></select></label><label class="staff-custom-name" data-staff-custom="refereeName" hidden>Nome dell’arbitro<input name="refereeCustomName" maxlength="80" placeholder="Nome e cognome"></label>
+          <label>Responsabile di campo<select name="courtManagerName" id="courtManagerName"><option value="">Non indicato</option></select></label><label class="staff-custom-name" data-staff-custom="courtManagerName" hidden>Nome del responsabile<input name="courtManagerCustomName" maxlength="80" placeholder="Nome e cognome"></label>
         </fieldset>
         <label>Risultato finale<input name="result" inputmode="numeric" required placeholder="es. 2-1"></label>
         <div class="sets"><label>1° set<input name="set1" inputmode="numeric" placeholder="es. 25-20"></label><label>2° set<input name="set2" inputmode="numeric" placeholder="es. 25-18"></label><label>3° set<input name="set3" inputmode="numeric" placeholder="es. 15-12"></label></div>
@@ -32,6 +33,7 @@
     <section id="entrySuccess" class="entry-card success" hidden><p>REFERTO INVIATO</p><h2>In attesa di verifica</h2><p id="entrySuccessText"></p></section>
     <section id="entryFailure" class="entry-card failure" hidden><h2>QR non disponibile</h2><p id="entryFailureText">Contatta il responsabile di campo.</p></section>
   </main>
+  <script src="common-match-picker.js"></script>
   <script src="referto.js"></script>
 </body>
 </html>

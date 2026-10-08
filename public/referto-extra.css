@@ -27,3 +27,13 @@ input::placeholder {
   font-size: 12px;
   line-height: 1.4;
 }
+
+.staff-custom-name {
+  padding: 10px;
+  border-radius: 10px;
+  background: #eef3f6;
+}
+
+.staff-custom-name[hidden] {
+  display: none;
+}
