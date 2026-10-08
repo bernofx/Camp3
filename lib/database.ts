@@ -25,7 +25,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS notices (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, message TEXT NOT NULL, accent INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, created_by INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS incident_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, incident_type TEXT NOT NULL, title TEXT NOT NULL, summary TEXT NOT NULL, payload TEXT NOT NULL DEFAULT '{}', user_id INTEGER NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS team_withdrawals (team_code TEXT PRIMARY KEY, reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, created_by INTEGER NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS qr_access_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token_hash TEXT NOT NULL UNIQUE, kind TEXT NOT NULL, reference TEXT NOT NULL, label TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, expires_at TEXT, created_by INTEGER NOT NULL, created_at TEXT NOT NULL, revoked_at TEXT)`,
+  `CREATE TABLE IF NOT EXISTS qr_access_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token_hash TEXT NOT NULL UNIQUE, token_value TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL, reference TEXT NOT NULL, label TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, expires_at TEXT, created_by INTEGER NOT NULL, created_at TEXT NOT NULL, revoked_at TEXT)`,
   `CREATE TABLE IF NOT EXISTS score_uploads (photo_key TEXT PRIMARY KEY, token_hash TEXT NOT NULL, photo_mime TEXT NOT NULL, photo_size INTEGER NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT)`,
   `CREATE TABLE IF NOT EXISTS score_submissions (id INTEGER PRIMARY KEY AUTOINCREMENT, public_code TEXT NOT NULL UNIQUE, game_id TEXT NOT NULL, category_code TEXT NOT NULL, scorekeeper_name TEXT NOT NULL, result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', photo_key TEXT NOT NULL, photo_mime TEXT NOT NULL, photo_size INTEGER NOT NULL, photo_state TEXT NOT NULL DEFAULT 'available', photo_purged_at TEXT, photo_purged_by INTEGER, status TEXT NOT NULL DEFAULT 'pending', submitted_at TEXT NOT NULL, reviewed_at TEXT, reviewed_by INTEGER, review_note TEXT NOT NULL DEFAULT '')`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`,
@@ -79,6 +79,8 @@ export async function ensureDatabase() {
     if(!categorySettingColumns.results.some(column=>column.name==="home_and_away"))await db.prepare("ALTER TABLE category_settings ADD COLUMN home_and_away INTEGER NOT NULL DEFAULT 0").run();
     const resultAuditColumns=await db.prepare("PRAGMA table_info(result_audit)").all<{name:string}>();
     if(!resultAuditColumns.results.some(column=>column.name==="submission_id"))await db.prepare("ALTER TABLE result_audit ADD COLUMN submission_id INTEGER").run();
+    const qrTokenColumns=await db.prepare("PRAGMA table_info(qr_access_tokens)").all<{name:string}>();
+    if(!qrTokenColumns.results.some(column=>column.name==="token_value"))await db.prepare("ALTER TABLE qr_access_tokens ADD COLUMN token_value TEXT NOT NULL DEFAULT ''").run();
     const tournamentDayColumns=await db.prepare("PRAGMA table_info(tournament_days)").all<{name:string}>();
     if(!tournamentDayColumns.results.some(column=>column.name==="end_time"))await db.prepare("ALTER TABLE tournament_days ADD COLUMN end_time TEXT NOT NULL DEFAULT '23:59'").run();
     const infrastructure = [

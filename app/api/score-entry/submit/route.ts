@@ -1,7 +1,7 @@
 import { database, ensureDatabase } from "../../../../lib/database";
 import { json } from "../../../../lib/auth";
 import { createPublicCode } from "../../../../lib/qr";
-import { normalizeScoreData } from "../../../../lib/results";
+import { assertResultPrerequisites, normalizeScoreData } from "../../../../lib/results";
 import { resolveQrToken } from "../route";
 
 export async function POST(request: Request) {
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
   const match = await database().prepare("SELECT m.game_id AS gameId,m.category_code AS category,m.match_date AS date,m.match_time AS time,m.court,m.home_ref AS homeRef,m.away_ref AS awayRef,COALESCE(home.name,m.home_ref) AS homeName,COALESCE(away.name,m.away_ref) AS awayName,COALESCE(day.code,'') AS dayCode,m.result,m.status FROM matches m LEFT JOIN teams home ON home.code=m.home_ref LEFT JOIN teams away ON away.code=m.away_ref LEFT JOIN tournament_days day ON day.day_date=m.match_date WHERE m.game_id=?").bind(score.gameId).first<{gameId:string;category:string;date:string;time:string;court:string;homeRef:string;awayRef:string;homeName:string;awayName:string;dayCode:string;result:string;status:string}>();
   if (!match || match.result || match.status === "completed") return json({ error: "La gara selezionata non è più disponibile per l’invio." }, 409);
   if (access.kind === "match" && access.reference !== score.gameId) return json({ error: "Questo QR è associato a un’altra gara." }, 409);
+  try { await assertResultPrerequisites(match.gameId, match.category); } catch (error) { return json({ error: error instanceof Error ? error.message : "Le gare precedenti non sono ancora concluse." }, 409); }
   const photoKey = String(payload.photoKey || ""), upload = await database().prepare("SELECT photo_key AS photoKey,photo_mime AS mime,photo_size AS size FROM score_uploads WHERE photo_key=? AND token_hash=? AND consumed_at IS NULL AND expires_at>?").bind(photoKey, access.tokenHash, new Date().toISOString()).first<{photoKey:string;mime:string;size:number}>();
   if (!upload) return json({ error: "Fotografia mancante o scaduta: allegala nuovamente." }, 409);
   let publicCode = createPublicCode();

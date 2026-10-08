@@ -33,6 +33,7 @@ export const resultAudit = sqliteTable("result_audit", {
 export const qrAccessTokens = sqliteTable("qr_access_tokens", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   tokenHash: text("token_hash").notNull().unique(),
+  tokenValue: text("token_value").notNull().default(""),
   kind: text("kind").notNull(),
   reference: text("reference").notNull(),
   label: text("label").notNull().default(""),
