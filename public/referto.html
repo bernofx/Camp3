@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11263f">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="referto.css">
+  <title>Invia referto · VolleyStars</title>
+</head>
+<body>
+  <main class="score-entry">
+    <header><p>VOLLEYSTARS</p><h1>Invia il referto</h1><span id="qrLabel">Verifica QR…</span></header>
+    <section class="entry-card" id="entryCard" hidden>
+      <p class="intro">Scegli la gara, fotografa il referto e invialo. Il risultato verrà pubblicato solo dopo la verifica di un amministratore.</p>
+      <form id="scoreEntryForm">
+        <label>Gara<select id="entryGame" name="gameId" required></select></label>
+        <article id="entryGameInfo" class="game-info"></article>
+        <label>Nome del refertista<input name="scorekeeperName" autocomplete="name" maxlength="80" required placeholder="Nome e cognome"></label>
+        <label>Risultato finale<input name="result" inputmode="numeric" required placeholder="es. 2-1"></label>
+        <div class="sets"><label>1° set<input name="set1" inputmode="numeric" placeholder="25-20"></label><label>2° set<input name="set2" inputmode="numeric" placeholder="25-18"></label><label>3° set<input name="set3" inputmode="numeric" placeholder="15-12"></label></div>
+        <label>Foto del referto<input name="photo" type="file" accept="image/jpeg,image/png" capture="environment" required><small>JPEG o PNG, massimo 8 MB. Inquadra soltanto il referto.</small></label>
+        <p id="entryError" role="alert"></p>
+        <button id="entrySubmit" type="submit">Invia per verifica</button>
+      </form>
+    </section>
+    <section id="entrySuccess" class="entry-card success" hidden><p>REFERTO INVIATO</p><h2>In attesa di verifica</h2><p id="entrySuccessText"></p></section>
+    <section id="entryFailure" class="entry-card failure" hidden><h2>QR non disponibile</h2><p id="entryFailureText">Contatta il responsabile di campo.</p></section>
+  </main>
+  <script src="referto.js"></script>
+</body>
+</html>

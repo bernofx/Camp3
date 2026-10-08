@@ -12,7 +12,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS categories (code TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#dff4ea', sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
-  `CREATE TABLE IF NOT EXISTS category_settings (category_code TEXT PRIMARY KEY, admission_method TEXT NOT NULL DEFAULT 'top2_each', placement_mode TEXT NOT NULL DEFAULT 'top2', entry_round TEXT NOT NULL DEFAULT 'semifinals')`,
+  `CREATE TABLE IF NOT EXISTS category_settings (category_code TEXT PRIMARY KEY, admission_method TEXT NOT NULL DEFAULT 'top2_each', placement_mode TEXT NOT NULL DEFAULT 'top2', entry_round TEXT NOT NULL DEFAULT 'semifinals', home_and_away INTEGER NOT NULL DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS tournament_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, category_code TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, UNIQUE(category_code, code))`,
   `CREATE TABLE IF NOT EXISTS teams (code TEXT PRIMARY KEY, name TEXT NOT NULL, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS courts (code TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
@@ -21,15 +21,21 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS staff (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, can_referee INTEGER NOT NULL DEFAULT 0, can_scorekeeper INTEGER NOT NULL DEFAULT 0, can_court_manager INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS matches (game_id TEXT PRIMARY KEY, category_code TEXT NOT NULL, group_code TEXT NOT NULL DEFAULT '', phase TEXT NOT NULL DEFAULT 'girone', match_date TEXT NOT NULL, match_time TEXT NOT NULL, court TEXT NOT NULL DEFAULT '', home_ref TEXT NOT NULL, away_ref TEXT NOT NULL, scorekeeper TEXT NOT NULL DEFAULT '', referee TEXT NOT NULL DEFAULT '', court_manager TEXT NOT NULL DEFAULT '', result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'scheduled')`,
   `CREATE TABLE IF NOT EXISTS final_links (target_game_id TEXT PRIMARY KEY, category_code TEXT NOT NULL, section_title TEXT NOT NULL DEFAULT 'Fase finale', section_order INTEGER NOT NULL DEFAULT 0, target_order INTEGER NOT NULL DEFAULT 0, home_kind TEXT NOT NULL, home_ref TEXT NOT NULL, away_kind TEXT NOT NULL, away_ref TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS result_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, category TEXT NOT NULL, result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', user_id INTEGER NOT NULL, created_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS result_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, category TEXT NOT NULL, result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', user_id INTEGER NOT NULL, submission_id INTEGER, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS notices (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, message TEXT NOT NULL, accent INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, created_by INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS incident_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, incident_type TEXT NOT NULL, title TEXT NOT NULL, summary TEXT NOT NULL, payload TEXT NOT NULL DEFAULT '{}', user_id INTEGER NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS team_withdrawals (team_code TEXT PRIMARY KEY, reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, created_by INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS qr_access_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token_hash TEXT NOT NULL UNIQUE, kind TEXT NOT NULL, reference TEXT NOT NULL, label TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, expires_at TEXT, created_by INTEGER NOT NULL, created_at TEXT NOT NULL, revoked_at TEXT)`,
+  `CREATE TABLE IF NOT EXISTS score_uploads (photo_key TEXT PRIMARY KEY, token_hash TEXT NOT NULL, photo_mime TEXT NOT NULL, photo_size INTEGER NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT)`,
+  `CREATE TABLE IF NOT EXISTS score_submissions (id INTEGER PRIMARY KEY AUTOINCREMENT, public_code TEXT NOT NULL UNIQUE, game_id TEXT NOT NULL, category_code TEXT NOT NULL, scorekeeper_name TEXT NOT NULL, result TEXT NOT NULL DEFAULT '', set_1 TEXT NOT NULL DEFAULT '', set_2 TEXT NOT NULL DEFAULT '', set_3 TEXT NOT NULL DEFAULT '', photo_key TEXT NOT NULL, photo_mime TEXT NOT NULL, photo_size INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', submitted_at TEXT NOT NULL, reviewed_at TEXT, reviewed_by INTEGER, review_note TEXT NOT NULL DEFAULT '')`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`,
   `CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(match_date, match_time)`,
   `CREATE INDEX IF NOT EXISTS idx_matches_category ON matches(category_code)`,
   `CREATE INDEX IF NOT EXISTS idx_notices_created_at ON notices(created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_incident_audit_created_at ON incident_audit(created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_qr_access_tokens_reference ON qr_access_tokens(kind, reference, active)`,
+  `CREATE INDEX IF NOT EXISTS idx_score_submissions_status ON score_submissions(status, submitted_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_score_submissions_game ON score_submissions(game_id, submitted_at DESC)`,
 ];
 
 const categoryDefaults = [
@@ -70,6 +76,9 @@ export async function ensureDatabase() {
         WHEN EXISTS(SELECT 1 FROM matches WHERE category_code=category_settings.category_code AND phase='fase-finale') THEN 'semifinals'
         ELSE 'final' END`).run();
     }
+    if(!categorySettingColumns.results.some(column=>column.name==="home_and_away"))await db.prepare("ALTER TABLE category_settings ADD COLUMN home_and_away INTEGER NOT NULL DEFAULT 0").run();
+    const resultAuditColumns=await db.prepare("PRAGMA table_info(result_audit)").all<{name:string}>();
+    if(!resultAuditColumns.results.some(column=>column.name==="submission_id"))await db.prepare("ALTER TABLE result_audit ADD COLUMN submission_id INTEGER").run();
     const tournamentDayColumns=await db.prepare("PRAGMA table_info(tournament_days)").all<{name:string}>();
     if(!tournamentDayColumns.results.some(column=>column.name==="end_time"))await db.prepare("ALTER TABLE tournament_days ADD COLUMN end_time TEXT NOT NULL DEFAULT '23:59'").run();
     const infrastructure = [
