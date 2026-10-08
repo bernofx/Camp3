@@ -17,7 +17,10 @@
     </div>
     <div class="header-actions">
       <button id="refreshButton" class="icon-button" type="button" aria-label="Aggiorna dati" title="Aggiorna dati">↻</button>
-      <button id="loginButton" class="login-button" type="button">Accesso admin</button>
+      <details id="accountMenu" class="account-menu">
+        <summary aria-label="Apri menu" title="Menu"><span></span><span></span><span></span></summary>
+        <div class="account-menu-panel"><button id="loginButton" class="login-button" type="button">Accesso admin</button></div>
+      </details>
     </div>
   </header>
 
@@ -263,7 +266,7 @@
     <button id="plannerTab" class="nav-item" data-view="plannerView" type="button" hidden><span>▦</span>Pianifica</button>
     <button id="desktopPlannerTab" class="nav-item desktop-only-tab" data-view="desktopPlannerView" type="button" hidden><span>▤</span>Regia</button>
     <button id="themeTab" class="nav-item" data-view="themeView" type="button" hidden><span>◐</span>Stile</button>
-    <button id="infoTab" class="nav-item" data-view="infoView" type="button"><span>i</span>Info</button>
+    <button id="infoTab" class="nav-item" data-view="infoView" type="button"><span class="nav-icon">i<i id="infoUnreadBadge" class="info-unread-badge" aria-label="Avvisi non letti" hidden>*</i></span>Info</button>
   </nav>
 
   <dialog id="loginDialog" class="app-dialog"><form id="loginForm" class="dialog-card"><button class="dialog-close" type="button" data-close-dialog="loginDialog" aria-label="Chiudi">×</button><p class="eyebrow">AMMINISTRATORI</p><h2>Accedi</h2><label>Username<input name="username" autocomplete="username" required></label><label>Password<input name="password" type="password" autocomplete="current-password" required></label><p id="loginError" class="form-error"></p><button class="primary-action" type="submit">Accedi</button></form></dialog>

@@ -24,12 +24,19 @@
   let syncing = false;
   let suppressNextNoticeNotification = false;
   const selectionKey = "volleystars-v1-db-selections";
+  const readNoticesKey = "volleystars-v1-read-notices";
   const themeDefaults={preset:"default",primary:"#11263f",secondary:"#193957",accent:"#ff6b57",background:"#f6f2e9",surface:"#ffffff",text:"#17202b",muted:"#68717c",line:"#dedbd3",typography:"classic",density:"comfortable",radius:"17",shadow:"soft"};
   const themePresets={
     default:{...themeDefaults,label:"Attuale"},
     energy:{...themeDefaults,preset:"energy",primary:"#14213d",secondary:"#263d67",accent:"#f04e3e",background:"#f7f3ea",surface:"#ffffff",label:"Energia"},
     ocean:{...themeDefaults,preset:"ocean",primary:"#073b4c",secondary:"#0b6175",accent:"#ef476f",background:"#eef8f7",surface:"#ffffff",typography:"modern",label:"Oceano"},
-    minimal:{...themeDefaults,preset:"minimal",primary:"#24282d",secondary:"#4d5964",accent:"#2b7a65",background:"#f3f5f4",surface:"#ffffff",text:"#202428",muted:"#626b72",line:"#d6dcda",typography:"modern",radius:"10",shadow:"none",label:"Minimal"}
+    minimal:{...themeDefaults,preset:"minimal",primary:"#24282d",secondary:"#4d5964",accent:"#2b7a65",background:"#f3f5f4",surface:"#ffffff",text:"#202428",muted:"#626b72",line:"#d6dcda",typography:"modern",radius:"10",shadow:"none",label:"Minimal"},
+    sunset:{...themeDefaults,preset:"sunset",primary:"#4a2235",secondary:"#713a4e",accent:"#ff7657",background:"#fff4e8",surface:"#fffdf9",text:"#302029",muted:"#765b66",line:"#ead6ce",typography:"rounded",radius:"20",label:"Tramonto"},
+    forest:{...themeDefaults,preset:"forest",primary:"#173b32",secondary:"#295c4d",accent:"#e07a3f",background:"#f0f4e8",surface:"#fbfdf8",text:"#1d2d27",muted:"#60736a",line:"#d3ddcf",label:"Bosco"},
+    violet:{...themeDefaults,preset:"violet",primary:"#33245d",secondary:"#59458b",accent:"#e8588d",background:"#f5f0fb",surface:"#ffffff",text:"#2b2340",muted:"#706681",line:"#ddd4e8",typography:"modern",label:"Viola"},
+    sand:{...themeDefaults,preset:"sand",primary:"#4b4032",secondary:"#76644d",accent:"#cb5f3d",background:"#f4ead8",surface:"#fffaf0",text:"#332d26",muted:"#756b5f",line:"#ded0b8",radius:"8",shadow:"none",label:"Sabbia"},
+    fresh:{...themeDefaults,preset:"fresh",primary:"#123b52",secondary:"#24637d",accent:"#19a974",background:"#edf8f5",surface:"#ffffff",text:"#17313c",muted:"#607781",line:"#cde1dc",typography:"rounded",radius:"24",label:"Fresco"},
+    contrast:{...themeDefaults,preset:"contrast",primary:"#111111",secondary:"#303030",accent:"#d64000",background:"#f6f6f6",surface:"#ffffff",text:"#111111",muted:"#4f4f4f",line:"#9a9a9a",typography:"modern",radius:"6",shadow:"strong",label:"Contrasto"}
   };
   let qualificationGroups = {
     U13:{C:["131","132","133","134"],D:["135","136","137","138"]},
@@ -328,7 +335,7 @@
     const manager=match.courtManager?` · Responsabile: ${esc(match.courtManager)}`:"";
     const liveBadge=match.status==="live"?'<span class="match-live-badge"><i></i> In corso</span>':"";
     const edit=currentUser&&tournamentState()==="live"?`<button class="edit-result" type="button" data-edit-game="${esc(match.gameId)}" aria-label="Modifica risultato gara ${esc(match.gameId)}">✎</button>`:"";
-    return `<article class="match-card${hasDetails?" has-details":""}${match.status==="live"?" is-live":""}" style="--match-tint:${tint(categoryColor(match.category),.18)}" data-game-id="${esc(match.gameId)}" ${interaction}><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small><small>Gara ${esc(match.gameId)}</small></div><div class="match-main"><strong>${esc(expandMatchup(resolvedMatchup(match)))}</strong>${liveBadge}${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}${manager}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span>${setDetails}${edit}</article>`;
+    return `<article class="match-card${hasDetails?" has-details":""}${match.status==="live"?" is-live":""}" style="--match-tint:${tint(categoryColor(match.category),.18)}" data-game-id="${esc(match.gameId)}" ${interaction}><div class="time-block">${esc(match.time)}<small>Campo ${esc(match.court)}</small><small>Gara ${esc(match.gameId)}</small></div><div class="match-main"><strong class="linked-matchup">${linkedMatchup(resolvedMatchup(match))}</strong>${liveBadge}${result?`<p class="result">${esc(result)}</p>`:""}<p>Referto: ${esc(match.scorekeeper||"da definire")} · Arbitro: ${esc(match.referee||"da definire")}${manager}</p></div><span class="category-chip ${esc(categoryClass)}">${esc(match.category)}</span>${setDetails}${edit}</article>`;
   }
 
   function toggleMatchCard(card){
@@ -345,6 +352,10 @@
   function expandMatchup(value) {
     return value.replace(/\b(\d{3})\b/g, code => teamNames[code] ? `${teamNames[code]} (${code})` : code);
   }
+
+  function linkedParticipant(value){const raw=String(value||""),existing=raw.match(/\((\d{3})\)\s*$/),expanded=existing?raw:expandMatchup(raw),match=existing||expanded.match(/^\s*(\d{3})\s*$/)||expanded.match(/\((\d{3})\)\s*$/),code=match?.[1];return code&&teamNames[code]?`<button type="button" class="team-link" data-team-link="${esc(code)}">${esc(expanded)}</button>`:esc(expanded);}
+  function linkedMatchup(value){return String(value||"").split(/\s+-\s+/).map(linkedParticipant).join('<span class="matchup-separator"> – </span>');}
+  function openTeam(code){const select=$("teamSelect");if(!select||![...select.options].some(option=>option.value===code))return;select.value=code;saveSelections();updateTeamSelectColor();renderTeams();$("teamsTab").click();window.scrollTo({top:0,behavior:"smooth"});}
 
   function renderAgenda() {
     const filter=$("categoryFilter").value;
@@ -388,7 +399,7 @@
     $("standingsView").style.backgroundColor=tint(categoryColor(category),.13);
     const groups=qualificationGroups[category]||{};
     $("standingsList").innerHTML=Object.entries(groups).map(([letter,codes])=>{
-      const rows=groupStandings(codes,matches,category,letter).map((item,index)=>`<tr><td class="standing-position">${index+1}</td><td><strong>${esc(teamNames[item.code]||item.code)}</strong><small>${esc(item.code)}</small></td><td>${item.played}</td><td>${item.wins}</td><td>${item.setsFor}-${item.setsAgainst}</td><td class="standing-ratio">${ratioText(item)}</td><td class="standing-points">${item.points}</td></tr>`).join("");
+      const rows=groupStandings(codes,matches,category,letter).map((item,index)=>`<tr><td class="standing-position">${index+1}</td><td><button type="button" class="team-link standing-team-link" data-team-link="${esc(item.code)}"><strong>${esc(teamNames[item.code]||item.code)}</strong><small>${esc(item.code)}</small></button></td><td>${item.played}</td><td>${item.wins}</td><td>${item.setsFor}-${item.setsAgainst}</td><td class="standing-ratio">${ratioText(item)}</td><td class="standing-points">${item.points}</td></tr>`).join("");
       const groupName=letter==="C"?"A":letter==="D"?"B":letter;
       return `<section class="standings-card"><h3>Girone ${esc(groupName)}</h3><div class="table-scroll"><table><thead><tr><th>#</th><th>Squadra</th><th>G</th><th>V</th><th>Set</th><th title="Quoziente punti fatti/punti subiti">QP</th><th>Pt</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
     }).join("")||'<div class="empty">Classifica non disponibile.</div>';
@@ -408,7 +419,7 @@
     const rows=teams.map((team,index)=>{
       const winner=score&&score[index]>score[1-index];
       const badge=winner&&isFinal?`<small>${isChampionship?"🏆 Campione":"✓ Vincente"}</small>`:"";
-      return `<div class="bracket-team${winner?" winner":""}${winner&&isChampionship?" champion":""}"><span>${esc(team)}${badge}</span>${score?`<strong>${score[index]}</strong>`:""}</div>`;
+      return `<div class="bracket-team${winner?" winner":""}${winner&&isChampionship?" champion":""}"><span>${linkedParticipant(team)}${badge}</span>${score?`<strong>${score[index]}</strong>`:""}</div>`;
     }).join("");
     return `<article class="bracket-match"><div class="bracket-meta"><span>${esc(kind)}</span><span>${esc(match.time)} · gara ${esc(match.gameId)}</span></div>${rows}</article>`;
   }
@@ -724,7 +735,12 @@
 
   function renderNotices(){
     $("noticeList").innerHTML=notices.map(item=>`<article class="info-card${item.accent?" accent":""}"><div class="notice-head"><h3>${esc(item.title)}</h3>${currentUser?`<button type="button" data-delete-notice="${esc(item.id)}">Rimuovi</button>`:""}</div><p>${esc(item.message)}</p>${item.createdAt?`<small>${esc(new Date(item.createdAt).toLocaleString("it-IT",{dateStyle:"short",timeStyle:"short"}))}</small>`:""}</article>`).join("")||'<article class="info-card"><p>Nessun avviso pubblicato.</p></article>';
+    updateUnreadNotices();
   }
+
+  function readNoticeIds(){try{return new Set(JSON.parse(localStorage.getItem(readNoticesKey)||"[]").map(String));}catch{return new Set();}}
+  function updateUnreadNotices(){const badge=$("infoUnreadBadge");if(!badge)return;const read=readNoticeIds(),count=notices.filter(item=>item.id&&!read.has(String(item.id))).length;badge.hidden=!count;badge.textContent=count>9?"9+":"*";badge.setAttribute("aria-label",`${count} ${count===1?"avviso non letto":"avvisi non letti"}`);}
+  function markNoticesRead(){const ids=notices.map(item=>String(item.id)).filter(Boolean);localStorage.setItem(readNoticesKey,JSON.stringify(ids));updateUnreadNotices();}
 
   function changedResults(previous,current){
     const oldById=new Map((previous||[]).map(match=>[match.gameId,resultText(match)]));
@@ -762,12 +778,14 @@
   }
 
   $("environmentInfo").textContent=`Configurazione attiva: ${config.label}. Database interno D1.`;
-  document.querySelectorAll(".nav-item").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));button.classList.add("active");$(button.dataset.view).classList.add("active");}));
+  document.querySelectorAll(".nav-item").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll(".nav-item,.view").forEach(el=>el.classList.remove("active"));button.classList.add("active");$(button.dataset.view).classList.add("active");if(button.id==="infoTab")markNoticesRead();}));
   document.addEventListener("click",event=>{
+    const accountMenu=$("accountMenu");if(accountMenu.open&&!event.target.closest("#accountMenu"))accountMenu.open=false;
     const pickerToggle=event.target.closest(".match-picker-trigger");if(pickerToggle){const picker=pickerToggle.closest(".match-picker"),panel=picker.querySelector(".match-picker-panel"),opening=panel.hidden;closeMatchPicker();if(opening){panel.hidden=false;pickerToggle.setAttribute("aria-expanded","true");openMatchPicker=picker;renderMatchPickerResults(picker);setTimeout(()=>picker.querySelector("[data-match-search]").focus(),0);}return;}
     const pickerChoice=event.target.closest("[data-match-choice]");if(pickerChoice){const picker=pickerChoice.closest(".match-picker"),state=picker._matchPickerState;state.select.value=pickerChoice.dataset.matchChoice;state.select.dispatchEvent(new Event("change",{bubbles:true}));refreshMatchPicker(picker);const second=state.select.form?.elements.secondGameId?.nextElementSibling;if(second?.classList.contains("match-picker"))refreshMatchPicker(second);closeMatchPicker();return;}
     if(openMatchPicker&&!event.target.closest(".match-picker"))closeMatchPicker();
     const destination=event.target.closest("[data-result-destination]");if(destination){const finals=destination.dataset.resultDestination==="finals",select=$(finals?"finalsCategory":"standingsCategory"),category=destination.dataset.resultCategory;if([...select.options].some(option=>option.value===category))select.value=category;saveSelections();finals?renderFinals():renderStandings();$(finals?"finalsTab":"standingsTab").click();hideResultToast();window.scrollTo({top:0,behavior:"smooth"});return;}
+    const teamLink=event.target.closest("[data-team-link]");if(teamLink){event.stopPropagation();openTeam(teamLink.dataset.teamLink);return;}
     const edit=event.target.closest("[data-edit-game]");if(edit){event.stopPropagation();openResultEditor(edit.dataset.editGame);return;}
     const editAdmin=event.target.closest("[data-admin-edit]");if(editAdmin){fillAdminForm(editAdmin.dataset.adminEdit,editAdmin.dataset.adminKey);return;}
     const deleteAdmin=event.target.closest("[data-admin-delete]");if(deleteAdmin){deleteAdminEntity(deleteAdmin.dataset.adminDelete,deleteAdmin.dataset.adminKey).catch(error=>showActionToast(error.message,"error"));return;}
@@ -789,7 +807,7 @@
   document.addEventListener("drop",event=>{if(!event.dataTransfer)return;const value=event.dataTransfer.getData("text/plain"),globalZone=event.target.closest("[data-global-drop]");if(globalZone&&value.startsWith("global:")){event.preventDefault();const [dayCode,court]=globalZone.dataset.globalDrop.split("|"),day=daysCatalog.find(item=>item.code===dayCode),duration=Number(settingsCatalog.match_duration_minutes||70),pixelsPerMinute=96/duration,rawMinutes=day?timeValue(day.startTime)+(event.clientY-globalZone.getBoundingClientRect().top)/pixelsPerMinute-desktopDragOffsetMinutes:0,snappedMinutes=Math.max(0,Math.round(rawMinutes/15)*15),requested=day?clockValue(snappedMinutes):"";desktopDragOffsetMinutes=0;moveDesktopGame(value.slice(7),dayCode,court,"",requested);return;}const groupZone=event.target.closest("[data-group-drop]");if(groupZone&&value.startsWith("team:")){event.preventDefault();moveTeamToGroup(value.slice(5),groupZone.dataset.groupDrop);return;}const zone=event.target.closest("[data-planner-drop]");if(!zone||value.startsWith("team:")||value.startsWith("global:"))return;event.preventDefault();plannerSelectedCourt=zone.dataset.plannerDrop;plannerAdd(value);});
   document.addEventListener("change",event=>{const pickerFilter=event.target.closest("[data-match-day],[data-match-court],[data-match-category]");if(pickerFilter){renderMatchPickerResults(pickerFilter.closest(".match-picker"));return;}const time=event.target.closest("[data-global-time]");if(time){if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)){showActionToast("Inserisci l’orario nel formato 24 ore HH:MM, per esempio 14:30.","error");renderDesktopPlanner();return;}const current=desktopDraft.get(time.dataset.globalTime)||{};desktopDraft.set(time.dataset.globalTime,{...current,time:time.value});markDesktopDraft();renderDesktopPlanner();return;}const select=event.target.closest("[data-team-group-select]");if(select)moveTeamToGroup(select.dataset.teamGroupSelect,select.value);const bulk=event.target.closest("[data-bulk-game]");if(bulk){bulk.checked?bulkStaffSelection.add(bulk.dataset.bulkGame):bulkStaffSelection.delete(bulk.dataset.bulkGame);}});
   $("categoryFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("courtFilter").addEventListener("change",()=>{saveSelections();renderAgenda();});$("upcomingOnly").addEventListener("change",()=>{saveSelections();renderAgenda();});$("teamSelect").addEventListener("change",()=>{saveSelections();updateTeamSelectColor();renderTeams();});$("standingsCategory").addEventListener("change",()=>{saveSelections();renderStandings();});$("finalsCategory").addEventListener("change",()=>{saveSelections();renderFinals();});$("groupPlannerCategory").addEventListener("change",()=>{saveSelections();renderGroupPlanner();});$("refreshButton").addEventListener("click",sync);$("resultToastClose").addEventListener("click",hideResultToast);$("actionToastClose").addEventListener("click",hideActionToast);
-  $("loginButton").addEventListener("click",async()=>{if(currentUser){await apiPost("/api/auth/logout",{});setAuth(null);}else{$("loginError").textContent="";$("loginDialog").showModal();}});
+  $("loginButton").addEventListener("click",async()=>{$("accountMenu").open=false;if(currentUser){await apiPost("/api/auth/logout",{});setAuth(null);}else{$("loginError").textContent="";$("loginDialog").showModal();}});
   $("loginForm").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());try{const payload=await apiPost("/api/auth/login",data);$("loginDialog").close();form.reset();setAuth(payload.user);}catch(error){$("loginError").textContent=error.message;}});
   $("noticeForm").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());showActionToast("Pubblicazione dell’avviso…","busy");try{const payload=await apiPost("/api/admin/notices",{action:"create",data});if(payload.noticeId)sessionStorage.setItem(`volleystars-authored-notice-${payload.noticeId}`,"1");form.reset();await sync();showActionToast(payload.message||"Avviso pubblicato.");}catch(error){showActionToast(error.message,"error");}});
   $("resultForm").addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());showActionToast("Salvataggio del risultato…","busy");try{await apiPost("/api/results",{gameId:data.gameId,category:data.category,result:data.result,sets:[data.set1,data.set2,data.set3]});locallySavedResultIds.add(String(data.gameId));$("resultDialog").close();await sync();showActionToast(`Risultato della gara ${data.gameId} salvato.`);}catch(error){$("resultError").textContent=error.message;showActionToast(error.message,"error");}});
