@@ -1,30 +1,44 @@
-# VolleyStars 2026
+# VolleyStars V1
 
-PWA mobile installabile su Android per agenda, risultati e informazioni dei volontari.
+Applicazione completa per configurare, pianificare e gestire tornei di pallavolo. Questa è la versione di sviluppo **V1** con backend e database interni: non legge il calendario da Google Sheets.
+
+## Funzioni principali
+
+- consultazione pubblica di agenda, squadre, classifiche, fasi finali e avvisi;
+- accesso amministratore per categorie, squadre, gironi e generazione automatica delle gare;
+- pianificazione su campi e giornate, controlli di coerenza e gestione degli imprevisti;
+- inserimento e approvazione dei risultati, QR per campo o gara e fotografie dei referti;
+- esportazione Excel di controllo;
+- interfaccia mobile e regia desktop sullo stesso database.
+
+## Struttura del progetto
+
+- `public/`: interfaccia V1 e PWA;
+- `app/`: pagine e API del backend;
+- `lib/`: database, autenticazione e logica del torneo;
+- `migrations/`: schema e aggiornamenti del database;
+- `scripts/`: avvio, compilazione e supporto al deploy;
+- `Dockerfile`: pubblicazione dell'app completa su Render.
+
+La cartella principale non contiene una seconda copia statica dell'app. Il punto di ingresso pubblico è `public/index.html`.
 
 ## Avvio locale
 
-Serve il progetto da questa cartella con un server HTTP statico, quindi apri l'indirizzo mostrato dal server. L'app parte in ambiente `TEST`.
+Richiede Node.js 22 o successivo.
 
-## Configurazioni
+```text
+npm install
+npm run dev
+```
 
-- `?env=test` usa la copia `Risultati VolleyStars 2026 - TEST APP`.
-- `?env=prod` usa il foglio originale.
+Per creare la versione distribuibile:
 
-Gli ID e i link sono centralizzati in `config.js`. Il passaggio finale a produzione può essere fatto cambiando `activeName` o mantenendo il parametro `?env=prod` nel link distribuito.
+```text
+npm run build
+```
 
-## Dati live
+## Pubblicazione su Render
 
-L'app legge i quattro tab attraverso l'esportazione CSV di Google Visualization. Il foglio deve consentire la lettura agli utenti dell'app. Se l'esportazione non è disponibile, il calendario incorporato continua a funzionare e l'app segnala chiaramente che i risultati non sono sincronizzati.
+Creare un **Web Service** con runtime **Docker**, branch `main`, root directory vuota e Dockerfile `./Dockerfile`. Le istruzioni complete sono in [RENDER.md](RENDER.md).
 
-## Installazione su Android
-
-Da Chrome: menu ⋮ → **Aggiungi a schermata Home** / **Installa app**. Per rendere disponibile l'installazione a tutti, pubblicare questa cartella su HTTPS.
-
-## Origine dei dati
-
-- programma ufficiale delle gare per date, orari e campi;
-- foglio refertisti/assistenti per le assegnazioni;
-- Google Sheet per risultati e set.
-
-Gli orari del campo 5 di venerdì usano il programma ufficiale: 18:00, 19:10 e 20:20.
+Il piano gratuito è adatto solo alle prove perché database e fotografie possono essere cancellati dopo un riavvio o un nuovo deploy. Per conservare i dati serve un disco persistente oppure, in una futura configurazione multi-cliente, un database e un archivio file esterni.
